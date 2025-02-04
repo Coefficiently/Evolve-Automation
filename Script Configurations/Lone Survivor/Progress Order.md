@@ -35,3 +35,38 @@
 - Build 11 Tau Colony
 - Build 3 Tau Red Womling Mine
 - Build 8 Tau Red Orbital Platform
+- Build 6 Tau Red Overseer
+- Build 14 Tau Casino
+- Research Tau Survey
+- Build Gas Giant Naming Contest
+- Build Tau Ceti Asteroid Belt Mission
+- Research Asteroid Data Analysis
+- Research Shark Repellent
+- Build 7 Patrol Ship
+- Build New Jupiter
+- Build 1 Refueling Station
+- Research Tau Ceti Belt Mining
+- Build 2 Tau Gas Ore Refinery
+- Build 4 Tau Belt Extractor Ship
+- Research Survey Outer Planet
+- Build Gas Giant 2 Naming Contest
+- Build Grand Jupiter
+- Build 100 Tau Gas 2 Alien Station (Survey)
+- Build 5 Tau Red Womling Mine
+- Build 3 Tau Gas Ore Refinery
+- Research Advanced Belt Mining
+- Research Alien Research
+- Build 6 Tau Belt Extractor Ship
+- Build 5 Tau Red Womling Mine
+- Build 4 Tau Gas Ore Refinery
+- Build 7 Tau Belt Extractor Ship
+- Research Advanced Ore Refinery
+- Research Advanced Asteroid Mining
+- Research Advanced Pit Mining
+- Research Womling Gene Therapy
+- Research Womling Dirt Excavation
+- Government Federation
+- Build 1000 Tau Star Ringworld
+- Research Garden of Eden
+- Build Garden of Eden Facility
+- RESET
