@@ -1,75 +1,37 @@
-Imitate Djinni
-Mimic None
-Government Technocracy
-Build 3 Tau Fusion Generator
-Research Limited Wish
-Research Governor
-Governor Bureaucrat
-Research Fanaticism
-Research Anthropology
-Research Greater Wish
-Research Ancient Theology
-Research Deify Ancients
-Research Alien Outpost Device
-Build 6 Tau Orbital Station
-Build 8 Tau Colony
-Build 7 Tau Casino
-Build 20 Stock Exchange
-Mimic Heat
-Research Antimatter Replicator
-Research Tau Ceti Cultivation
-Research Tau Ceti Manufacturing
-Build 1 Tau High-Tech Factory
-Government Corpocracy
-Build 7 Tau Orbital Station
-Build 3 Tau High-Tech Factory
-Research Meet the Neighbors
-Build 1 Tau Disease Lab
-Government Technocracy
-Build Subjugate Womlings
-Research Womling Entertainment
-Research Womling Science
-Government Federation
-Build 1 Tau Red Womling Lab
-Build 9 Tau Orbital Station
-Build 11 Tau Colony
-Build 3 Tau Red Womling Mine
-Build 8 Tau Red Orbital Platform
-Build 12 Tau Red Village
-Build 5 Tau Red Womling Farm
-Build 3 Tau Red Womling Theater
-Build 6 Tau Red Overseer
-Build 14 Tau Casino
-Research Tau Survey
-Build Gas Giant Naming Contest
-Build Tau Ceti Asteroid Belt Mission
-Research Asteroid Data Analysis
-Research Shark Repellent
-Build 7 Patrol Ship
-Build New Jupiter
-Build 1 Refueling Station
-Research Tau Ceti Belt Mining
-Build 2 Tau Gas Ore Refinery
-Build 4 Tau Belt Extractor Ship
-Research Survey Outer Planet
-Build Gas Giant 2 Naming Contest
-Build Grand Jupiter
-Build 100 Tau Gas 2 Alien Station (Survey)
-Build 5 Tau Red Womling Mine
-Build 3 Tau Gas Ore Refinery
-Research Advanced Belt Mining
-Research Alien Research
-Build 6 Tau Belt Extractor Ship
-Build 5 Tau Red Womling Mine
-Build 4 Tau Gas Ore Refinery
-Build 7 Tau Belt Extractor Ship
-Research Advanced Ore Refinery
-Research Advanced Asteroid Mining
-Research Advanced Pit Mining
-Research Womling Gene Therapy
-Research Womling Dirt Excavation
-Government Federation
-Build 1000 Tau Star Ringworld
-Research Garden of Eden
-Build Garden of Eden Facility
-RESET
+- Imitate Djinni
+- Mimic None
+- Government Technocracy
+- Build 3 Tau Fusion Generator
+- Research Limited Wish
+- Research Governor
+- Governor Bureaucrat
+- Research Fanaticism
+- Research Anthropology
+- Research Greater Wish
+- Research Ancient Theology
+- Research Deify Ancients
+- Research Alien Outpost Device
+- Build 6 Tau Orbital Station
+- Build 8 Tau Colony
+- Build 7 Tau Casino
+- Build 20 Stock Exchange
+- Mimic Heat
+- Research Antimatter Replicator
+- Research Tau Ceti Cultivation
+- Research Tau Ceti Manufacturing
+- Build 1 Tau High-Tech Factory
+- Government Corpocracy
+- Build 7 Tau Orbital Station
+- Build 3 Tau High-Tech Factory
+- Research Meet the Neighbors
+- Build 1 Tau Disease Lab
+- Government Technocracy
+- Build Subjugate Womlings
+- Research Womling Entertainment
+- Research Womling Science
+- Government Federation
+- Build 1 Tau Red Womling Lab
+- Build 9 Tau Orbital Station
+- Build 11 Tau Colony
+- Build 3 Tau Red Womling Mine
+- Build 8 Tau Red Orbital Platform
