@@ -1,57 +1,33 @@
 // ==UserScript==
 // @name         Evolve
 // @namespace    http://tampermonkey.net/
-// @version      3.3.1.139
+// @version      3.3.1.150
 // @description  try to take over the world!
-// @downloadURL  https://github.com/Vollch/Evolve-Automation/raw/master/evolve_automation.user.js
-// @updateURL    https://github.com/Vollch/Evolve-Automation/raw/master/evolve_automation.meta.js
+// @downloadURL  https://github.com/Coefficiently/Evolve-automation/raw/main/evolve_automation.user.js
+// @updateURL    https://github.com/Coefficiently/Evolve-automation/raw/main/evolve_automation.meta.js
 // @author       Fafnir
 // @author       TMVictor
 // @author       Vollch
 // @author       schoeggu
 // @author       davezatch
 // @author       Kewne
+// @author       Coefficiently
 // @match        https://pmotschmann.github.io/Evolve/
 // @grant        none
 // @require      https://code.jquery.com/jquery-3.7.1.min.js
 // @require      https://code.jquery.com/ui/1.12.1/jquery-ui.min.js
+// @require      https://kewne7768.github.io/monaco-export/monaco-export.js?0.51.0
 // ==/UserScript==
 //
 // This script forked from TMVictor's script version 3.3.1. Original script: https://gist.github.com/TMVictor/3f24e27a21215414ddc68842057482da
-//
-// Most of script options have tooltips, explaining what they do, read them if you have a questions.
-//
-// Here's some tips about non-intuitive features:
-//   Script tends to do a lot of clicks. It highly recommended to have key multipliers enabled, and bound to Shift\Control\Alt\Meta keys(in any combinations) for best performance.
-//   Ctrl+Click on almost any script option brings up advanced configurations, which allows to overide setting under certain conditions and set more advanced logic.
-//     Triggers, evolution queue, log filters, smart powering for interlinked buildings(like transport and bireme), priorities(draggables), and overrides itself - cannot be overridden.
-//     Overrides affects only script behaviour, GUI(outside of overrides modal) always show and changes default values.
-//   autoMarket, autoGalaxyMarket, autoFactory, and autoMiningDroid use weightings and priorities to determine their tasks. Resources split by groups of same priority, and then resources within group having the best priority distributed according to their weights. If there's still some more unused routes\factories\drones after assigning, script moves to next group with lower priority, etc. In most cases only one group with highest priority is active and working, while other groups serve as fallback for cases when all resources with better priority are either capped, or, in case of factory, unaffordable. There's few special values for finer configuration:
-//     Prioritization(queue, trigger, etc) does temporarily change priority of resource to 100, thus resources with priority above 100 won't be affected by prioritization.
-//       You can also disable prioritization under General Settings, if you can't cope with it.
-//     Priority of -1 it's special supplementary value meaning "same as current highest". Resources with this value will always be crafted among with whatever currently have highest priority, without disabling them.
-//     Resources with 0 priority won't be crafted during normal workflow, unless prioritized(which increases priority).
-//     Resources with 0 weighting won't ever be crafted, regardless of configured priority or prioritization.
-//     autoMarket and autoFactory also have separate global checkboxes per resources, when they disabled(both buying and selling in case of autoMarket) - script won't touch them, leaving with whatever was manually set.
-//   Added numbers in Mech Labs represents: design efficiency, real mech damage affected by most factors, and damage per used space, respectively. For all three - bigger numbers are better. Collectors show their supply collect rate.
-//   Buildings\researches queue, triggers, and available researches prioritize missing resources, overiding other script settings. If you have issues with factories producing not what you want, market buying not what you want, and such - you can disable this feature under general settings.
-//     Alternatively you may try to tweak options of producing facilities: resources with 0 weighting won't ever be produced, even when script tries to prioritize it. And resources with priority -1 will always have highest available priority, even when facility prioritizing something else. But not all facilities can be configured in that way.
-//   Auto Storage assigns crates\containers to make enough storage to build all buildings with enabled Auto Build.
-//     If some storage grew too high, taking all crates, you can disable expensive building, and Auto Storage won't try to fullfil its demands anymore. If you want to expand storage to build something manually, you can limit maximum level of building to 0, thus while it technically have auto build enabled, it won't ever be autobuilded, but you'll have needed storage.
-//   Order in which buildings receive power depends on order in buildings settings, you can drag and drop them to adjust priorities.
-//     Filtering works with names, some settings, and resource cost. E.g. you can filter for "build==on", "power==off", "weight<100", "soul gem>0", "iron>=1G" and such.
-//     By default Ascension Trigger placed where it can be activated as soon as possible without killing soldiers or population, and reducing prestige rewards. But it still can hurt production badly. If you're planning to ascend at very first opportunity(i.e. not planning to go for pillar or such), you may enable auto powering it. Otherwise you may want to delay with it till the moment when you'll be ready. (Or you can just move it where it will be less impacting on production, but that also means it'll take longer to get enough power)
-//     Auto Power have two toggles, first one enables basic management for building: based on priority, available power, support, and fuel. Logic behind second toggle is individual per building, but generally it tries to behave smart and save resources when it's enabled.
-//   Evolution Queue can change any script settings, not only those which you have after adding new task, you can append any variables and their values manually, if you're capable to read code, and can find internal names and acceptable values of those variables. Settings applied at the moment when new evolution starts. (Or right before reset in case of Cataclysm)
-//     Unavailable tasks in evolution queue will be ignored, so you can queue something like salamander and balorg, one after another, and configure script to pick either volcano or hellscape after bioseed. And, assuming you'll get either of these planets, it'll go for one of those two races. (You can configure more options to pick from, if you want)
-//   Auto Smelter does adjust rate of Inferno fuel and Oil for best cost and efficiency, but only when Inferno directly above oil.
-//   All settings can be reset to default at once by importing {} as script settings.
-//   Autoclicker can trivialize many aspects of the game, and ruin experience. Spoil your game at your own risk!
+
 
 (function($) {
     'use strict';
+
     var settingsRaw = JSON.parse(localStorage.getItem('settings')) ?? {};
     var settings = {};
+    var snippetData = {};
     var game = null;
     var win = null;
     var needSandboxBypass = false;
@@ -66,7 +42,7 @@
     var checkActions = false;
 
     // Displayed in error handler. Please change this if you publish a forked version of the script.
-    const SCRIPT_VERSION_EXTRA = "[Vollch]";
+    const SCRIPT_VERSION_EXTRA = "[Coefficiently]";
 
     const CONSUMPTION_BALANCE_MIN = 60; // Seconds of used resources to keep
     const CONSUMPTION_BALANCE_TARGET = 120; // Seconds of used resources to try producing
@@ -830,9 +806,13 @@
             this.consumption = [];
             this.cost = {};
             this.overridePowered = undefined;
+            this.boughtThisTick = 0; // Game debug data needs an offset since last debug data, so we need to track this (or make lots of very costly debug data updates).
 
             this.is = normalizeProperties(flags) ?? {};
         }
+
+        // Same as _vueBinding but doesn't look private
+        get settingId() { return this._vueBinding; }
 
         get autoBuildEnabled() { return settings['bat' + this._vueBinding] }
         get autoStateEnabled() { return settings['bld_s_' + this._vueBinding] }
@@ -950,7 +930,7 @@
             let adjustedCosts = poly.adjustCosts(this.definition);
             for (let resourceName in adjustedCosts) {
                 if (resources[resourceName]) {
-                    let resourceAmount = Number(adjustedCosts[resourceName]());
+                    let resourceAmount = Number(adjustedCosts[resourceName](this.boughtThisTick));
                     if (resourceAmount > 0) {
                         this.cost[resourceName] = resourceAmount;
                     }
@@ -969,7 +949,7 @@
 
         // This is a "safe" click. It will only click if the container is currently clickable.
         // ie. it won't bypass the interface and click the node if it isn't clickable in the UI.
-        click() {
+        click(silent = false) {
             if (!this.isClickable()) {
                 return false
             }
@@ -991,7 +971,7 @@
             }
 
             // Don't log evolution actions and gathering actions
-            if (game.global.race.species !== "protoplasm" && !logIgnore.includes(this.id)) {
+            if (game.global.race.species !== "protoplasm" && !silent && !logIgnore.includes(this.id)) {
                 if (this.gameMax < Number.MAX_SAFE_INTEGER && this.count + amountToBuild < this.gameMax) {
                     GameLog.logSuccess("multi_construction", poly.loc('build_success', [`${this.title} (${this.count + amountToBuild})`]), ['queue', 'building_queue']);
                 } else {
@@ -1009,6 +989,7 @@
             // refresh is really only needed for first building as there are no buildings where building a second unlocks more stuff.
             if (settings.performanceHackAvoidDrawTech && this.definition.refresh && this.count > 0) {
                 this.definition.action();
+                this.boughtThisTick++;
                 return true;
             }
 
@@ -1031,6 +1012,8 @@
             if (this.is.prestige) {
                 state.goal = "GameOverMan";
             }
+
+            this.boughtThisTick++;
 
             return true;
         }
@@ -1177,7 +1160,7 @@
                 return 0;
             }
 
-            return this.instance.count - this.instance.on;
+            return (this === buildings.Banquet ? Math.min(this.instance.count, 1) : this.instance.count) - this.instance.on;
         }
 
         tryAdjustState(adjustCount) {
@@ -1319,6 +1302,7 @@
             super(name, "arpa", id, "");
             this._vueBinding = "arpa" + this.id;
             this.currentStep = 1;
+            this.fullRemainingCost = {};
         }
 
         get autoBuildEnabled() { return settings['arpa_' + this._id] }
@@ -1332,7 +1316,9 @@
             }
 
             this.cost = {};
-            let maxStep = Math.min(100 - this.progress, state.triggerTargets.includes(this) ? 100 : settings.arpaStep);
+            this.fullRemainingCost = {};
+            let remainingSteps = 100 - this.progress;
+            let maxStep = Math.min(remainingSteps, state.allTriggerlikeTargets.includes(this) ? 100 : settings.arpaStep);
 
             let adjustedCosts = poly.arpaAdjustCosts(this.definition.cost);
             for (let resourceName in adjustedCosts) {
@@ -1340,6 +1326,7 @@
                     let resourceAmount = Number(adjustedCosts[resourceName]());
                     if (resourceAmount > 0) {
                         this.cost[resourceName] = resourceAmount / 100;
+                        this.fullRemainingCost[resourceName] = this.cost[resourceName] * remainingSteps;
                         maxStep = Math.min(maxStep, resources[resourceName].maxQuantity / this.cost[resourceName]);
                     }
                 }
@@ -1803,7 +1790,7 @@
     }
 
     class Trigger {
-        constructor(seq, priority, requirementType, requirementId, requirementCount, actionType, actionId, actionCount) {
+        constructor(seq, priority, requirementType, requirementId, requirementCount, actionType, actionId, actionCount, enabled, enabledOverrides) {
             this.seq = seq;
             this.priority = priority;
 
@@ -1815,6 +1802,11 @@
             this.actionId = actionId;
             this.actionCount = actionCount;
 
+            this.enabled = enabled;
+            // only if present and have at least 1 override in them, otherwise it can stay undefined
+            if (enabledOverrides?.length) {
+                this.enabledOverrides = enabledOverrides;
+            }
             this.complete = false;
         }
 
@@ -1867,6 +1859,9 @@
         }
 
         areRequirementsMet() {
+            let override = this.enabledOverrides?.length > 0 ? evaluateOverride(this.enabledOverrides, `triggers---${this.seq}---enabledOverrides`, "boolean") : OVERRIDE_NO_VALUE;
+            if ((override !== OVERRIDE_NO_VALUE ? override : this.enabled) !== true) return false;
+
             if (this.requirementType === "chain") {
                 return this.priority < 1 || TriggerManager.priorityList[this.priority - 1]?.complete;
             } else if (checkTypes[this.requirementType]) {
@@ -2138,7 +2133,7 @@
     const evolutionSettingsToStore = ["userEvolutionTarget", "prestigeType", ...challenges.map(c => "challenge_" + c[0].id)];
     const logIgnore = ["food", "lumber", "stone", "chrysotile", "slaughter", "s_alter", "slave_market", "horseshoe", "assembly", "cloning_facility", "ambush_patrol", "raid_supplies", "siege_fortress"];
     const galaxyRegions = ["gxy_stargate", "gxy_gateway", "gxy_gorddon", "gxy_alien1", "gxy_alien2", "gxy_chthonian"];
-    const settingsSections = ["toggle", "general", "prestige", "evolution", "research", "market", "storage", "production", "war", "hell", "fleet", "job", "building", "project", "government", "logging", "trait", "weighting", "ejector", "planet", "mech", "magic", "trigger"];
+    const settingsSections = ["toggle", "general", "prestige", "evolution", "research", "market", "storage", "production", "war", "hell", "fleet", "job", "building", "project", "government", "logging", "trait", "weighting", "ejector", "planet", "mech", "magic", "trigger", "snippet"];
     const mutationCostMultipliers = {sludge: {gain: 10, purge: 10}, ultra_sludge: {gain: 10, purge: 10}, custom: {gain: 10, purge: 10}};
     const mutationCostMultipliersGenus = {hybrid: {gain: 2, purge: 2}};
     const specialRaceTraits = {beast_of_burden: "reindeer", photosynth: "plant"};
@@ -2184,6 +2179,9 @@
         unlockedTechs: [],
         unlockedBuildings: [],
         conflictTargets: [],
+        get allTriggerlikeTargets() {
+            return [...this.triggerTargets, ...(settings.autoSnippet ? SnippetManager.activeTriggers : [])];
+        },
 
         maxSpaceMiners: Number.MAX_SAFE_INTEGER,
         globalProductionModifier: 1,
@@ -2380,10 +2378,10 @@
         ForgeHorseshoe: new ResourceAction("Horseshoe", "city", "horseshoe", "", "Horseshoe", {housing: true, garrison: true}),
         SlaveMarket: new ResourceAction("Slave Market", "city", "slave_market", "", "Slave"),
         SacrificialAltar: new Action("Sacrificial Altar", "city", "s_alter", ""),
-        House: new Action("Cabin", "city", "basic_housing", "", {housing: true}),
-        Cottage: new Action("Cottage", "city", "cottage", "", {housing: true}),
-        Apartment: new Action("Apartment", "city", "apartment", "", {housing: true}),
-        Lodge: new Action("Lodge", "city", "lodge", "", {housing: true}),
+        House: new Action("Cabin", "city", "basic_housing", "", {housing: true}, {multiSegmented: true}),
+        Cottage: new Action("Cottage", "city", "cottage", "", {housing: true}, {multiSegmented: true}),
+        Apartment: new Action("Apartment", "city", "apartment", "", {housing: true}, {multiSegmented: true}),
+        Lodge: new Action("Lodge", "city", "lodge", "", {housing: true}, {multiSegmented: true}),
         Smokehouse: new Action("Smokehouse", "city", "smokehouse", ""),
         SoulWell: new Action("Soul Well", "city", "soul_well", ""),
         SlavePen: new Action("Slave Pen", "city", "slave_pen", ""),
@@ -2394,7 +2392,7 @@
         Mill: new Action("Windmill", "city", "mill", "", {smart: true}),
         Windmill: new Action("Windmill (Evil)", "city", "windmill", ""),
         Silo: new Action("Grain Silo", "city", "silo", ""),
-        Assembly: new ResourceAction("Assembly", "city", "assembly", "", "Population", {housing: true, important: true}),
+        Assembly: new ResourceAction("Assembly", "city", "assembly", "", "Population", {housing: true, important: true}, {multiSegmented: true}),
         Barracks: new Action("Barracks", "city", "garrison", "", {garrison: true}),
         Hospital: new Action("Hospital", "city", "hospital", ""),
         BootCamp: new Action("Boot Camp", "city", "boot_camp", ""),
@@ -2479,7 +2477,7 @@
 
         SunMission: new Action("Sun Mission", "space", "sun_mission", "spc_sun"),
         SunSwarmControl: new Action("Sun Control Station", "space", "swarm_control", "spc_sun"),
-        SunSwarmSatellite: new Action("Sun Swarm Satellite", "space", "swarm_satellite", "spc_sun"),
+        SunSwarmSatellite: new Action("Sun Swarm Satellite", "space", "swarm_satellite", "spc_sun", {multiSegmented: true}),
         SunJumpGate: new Action("Sun Jump Gate", "space", "jump_gate", "spc_sun", {multiSegmented: true}),
 
         GasMission: new Action("Gas Mission", "space", "gas_mission", "spc_gas"),
@@ -2554,7 +2552,7 @@
         TauMission: new Action("Tau Mission", "tauceti", "home_mission", "tau_home"),
         TauDismantle: new Action("Tau Dismantle Ship", "tauceti", "dismantle", "tau_home"),
         TauOrbitalStation: new Action("Tau Orbital Station", "tauceti", "orbital_station", "tau_home"),
-        TauColony: new Action("Tau Colony", "tauceti", "colony", "tau_home", {housing: true}),
+        TauColony: new Action("Tau Colony", "tauceti", "colony", "tau_home", {housing: true, smart: true}),
         TauHousing: new Action("Tau Housing", "tauceti", "tau_housing", "tau_home", {housing: true}),
         TauCaptiveHousing: new CityAction("Tau Captive Housing", "tauceti", "captive_housing", "tau_home"),
         TauPylon: new Action("Tau Pylon", "tauceti", "pylon", "tau_home"),
@@ -2825,6 +2823,8 @@
         [buildings.SpirePort, buildings.SpireBaseCamp],
     ]
 
+    var assemblyBuildings = [buildings.Assembly, buildings.RedAssembly, buildings.TauAssembly];
+
     var projects = {
         LaunchFacility: new Project("Launch Facility", "launch_facility"),
         SuperCollider: new Project("Supercollider", "lhc"),
@@ -2858,7 +2858,7 @@
           () => 0
       ],[
           () => true,
-          (building) => state.triggerTargets.includes(building),
+          (building) => state.allTriggerlikeTargets.includes(building),
           () => "Active trigger, processing...",
           () => 0
       ],[
@@ -3010,6 +3010,45 @@
           },
           (other) => `${other.title} gives more Max Supplies`,
           () => 0 // Find what's better - Port or Base
+        ],[
+            () => {
+                // Prioritizes building the best building during materials phase.
+                // Active only during materials phase while mining pits are buildable - after that, just let it build whatever.
+                // autoPower smart storage handling should always keep mining pits buildable until it's impossible
+                return game.global.tech.tauceti && game.global.tech.tauceti <= 4 &&
+                    buildings.TauOrbitalStation.isAutoBuildable() &&
+                    buildings.TauColony.isAutoBuildable() &&
+                    buildings.TauMiningPit.isAutoBuildable() && buildings.TauMiningPit.isAffordable(true);
+            },
+            (building) => {
+                if (building === buildings.TauOrbitalStation || building === buildings.TauColony || building === buildings.TauMiningPit) {
+                    let bestBuilding = null;
+                    // TODO: rateOfChange seems wrong for Tau_Support?
+                    let availSupport = Math.max(resources.Tau_Support.maxQuantity - resources.Tau_Support.currentQuantity, 0);
+                    let nextPitPower = (buildings.TauMiningPit.count + 1) * (1 + (buildings.TauColony.count * 0.5));
+                    let nextColonyPower = buildings.TauMiningPit.count * (1 + ((buildings.TauColony.count + 1) * 0.5));
+                    // Best solution at the start: build a second and third mining pit, turn colony off. Special case but big speedup.
+                    // HACK: Can't do this if missing support rule is set to 0 (it will make things worse in general)
+                    if (buildings.TauMiningPit.count < 3 && settings.buildingWeightingMissingSupport > 0) {
+                        bestBuilding = buildings.TauMiningPit;
+                    }
+                    // Need more mining pits for storage to build good buildings
+                    else if (!buildings.TauOrbitalStation.isAffordable(true) || !buildings.TauColony.isAffordable(true)) {
+                        bestBuilding = buildings.TauMiningPit;
+                    }
+                    // Colony needs 2 so we start building support if at exactly 1 support too
+                    else if (nextColonyPower > nextPitPower) {
+                        bestBuilding = (availSupport <= 1 && buildings.TauOrbitalStation.isAffordable(true)) ? buildings.TauOrbitalStation : buildings.TauColony;
+                    }
+                    else {
+                        bestBuilding = (availSupport === 0 && buildings.TauOrbitalStation.isAffordable(true)) ? buildings.TauOrbitalStation : buildings.TauMiningPit;
+                    }
+
+                    return (bestBuilding === building) ? undefined : bestBuilding;
+                }
+            },
+            (other) => `Best materials phase build: ${other.title}`,
+            () => 0 // Handle Tau Ceti materials
       ],[
           () => haveTech("waygate", 2),
           (building) => building === buildings.SpireWaygate,
@@ -3189,6 +3228,7 @@
                   let supplyIndex = building === buildings.SpirePort ? 1 : building === buildings.SpireBaseCamp ? 2 : -1;
                   if ((supplyIndex > 0 && (buildings.SpireMechBay.isSmartManaged() || buildings.SpirePurifier.isSmartManaged()))
                     && (building.count < getBestSupplyRatio(resources.Spire_Support.maxQuantity, buildings.SpirePort.autoMax, buildings.SpireBaseCamp.autoMax)[supplyIndex])) { return false; }
+                  if (game.global.tech.tauceti && game.global.tech.tauceti <= 4 && (building === buildings.TauColony || building === buildings.TauMiningPit)) { return false; }
                   return true;
               }
           },
@@ -3339,6 +3379,16 @@
           (building) => (building._tab === "city" || building._tab === "space" || building._tab === "starDock") && !(building instanceof ResourceAction),
           () => "Solar System building",
           () => settings.buildingWeightingSolar
+      ],[
+          () => settings.buildingSpecialAssembly && game.global.race['artifical'],
+          (building) => (assemblyBuildings.includes(building)),
+          () => "Using special multi-build mode",
+          () => 1 // Pop assembly is crucial to progress, let normal weightings work too in case resources are short
+      ],[
+          () => settings.buildingSpecialSwarmSat && (buildings.SunSwarmSatellite.cost.Money??0) <= settings.buildingSpecialSwarmSatMoneyCap,
+          (building) => building === buildings.SunSwarmSatellite,
+          () => "Using special multi-build mode",
+          () => 0
     ]];
 
     // Singleton manager objects
@@ -4716,6 +4766,7 @@
             if (foreignUnlocked) {
                 let currentTarget = null;
                 let controlledForeigns = 0;
+                let pendingControlledForeigns = 0;
 
                 let unlockedForeigns = [];
                 if (!haveTech("world_control")) {
@@ -4740,21 +4791,30 @@
                         (foreign.gov.occ && foreign.policy === "Occupy")) {
                         controlledForeigns++;
                     }
+                    else if (["purchase", "annex"].includes(foreign.gov.act) && foreign.gov.sab > 0) {
+                        pendingControlledForeigns++;
+                    }
 
                     if (!settings.foreignPacifist && !foreign.gov.anx && !foreign.gov.buy && rank === "Inferior") {
                         currentTarget = foreign;
                     }
                 }
 
+                let allowOccupy = (game.global.tech['unify'] === 1 || settings.foreignForceOccupy);
                 // Adjust for fight
                 if (activeForeigns.length > 0 && !settings.foreignPacifist) {
                     // Try to attacks last uncontrolled inferior, or first occupied, or just first, in this order.
                     currentTarget = currentTarget ?? activeForeigns.find(f => f.gov.occ) ?? activeForeigns[0];
 
-                    let readyToUnify = settings.foreignUnification && controlledForeigns >= 2 && game.global.tech['unify'] === 1;
+                    let readyToUnify = settings.foreignUnification && (controlledForeigns+pendingControlledForeigns) >= 2 && allowOccupy;
 
                     // Don't annex or purchase our farm target, unless we're ready to unify
                     if (!readyToUnify && ["Annex", "Purchase"].includes(currentTarget.policy) && SpyManager.isEspionageUseful(currentTarget.id, SpyManager.Types[currentTarget.policy].id)) {
+                        currentTarget.policy = "Ignore";
+                    }
+
+                    // Don't occupy our farm target if we're ready to unify, but still waiting on the timer for other nations
+                    if (readyToUnify && pendingControlledForeigns > 0 && currentTarget.policy === "Occupy") {
                         currentTarget.policy = "Ignore";
                     }
 
@@ -4776,7 +4836,7 @@
                 }
 
                 // Request money for unify, make sure we have autoFight and autoResearch
-                if (game.global.tech['unify'] === 1 && settings.foreignUnification && settings.autoFight) {
+                if (allowOccupy && settings.foreignUnification && settings.autoFight) {
                     for (let foreign of activeForeigns) {
                         if (foreign.policy === "Purchase" && !foreign.gov.buy && foreign.gov.act !== "purchase") {
                             let moneyNeeded = Math.max(poly.govPrice(foreign.id), (foreign.gov.spy < 3 ? this.spyCost(foreign.id, 3) : 0));
@@ -5159,6 +5219,8 @@
         nextShipAffordable: null,
         nextShipExpandable: null,
         nextShipMsg: null,
+        nextShipDesiredCrew: 0,
+        nextShipRegion: null,
 
         WeaponPower: {railgun: 36, laser: 64, p_laser: 54, plasma: 90, phaser: 114, disruptor: 156},
         SensorRange: {visual: 1, radar: 20, lidar: 35, quantum: 60},
@@ -5310,12 +5372,12 @@
             let count = 0;
             for (let ship of game.global.space.shipyard.ships) {
                 if (ship.location === loc
-                    && ship.class === template.class
-                    && ship.power === template.power
-                    && ship.weapon === template.weapon
-                    && ship.armor === template.armor
-                    && ship.engine === template.engine
-                    && ship.sensor === template.sensor) {
+                    && (template.class === null || ship.class === template.class)
+                    && (template.power === null || ship.power === template.power)
+                    && (template.weapon === null || ship.weapon === template.weapon)
+                    && (template.armor === null || ship.armor === template.armor)
+                    && (template.engine === null || ship.engine === template.engine)
+                    && (template.sensor === null || ship.sensor === template.sensor)) {
                     count++;
                 }
             }
@@ -5868,6 +5930,7 @@
 
         updateBuildings() {
             for (let building of Object.values(buildings)){
+                building.boughtThisTick = 0;
                 building.updateResourceRequirements();
                 building.extraDescription = "";
             }
@@ -5955,7 +6018,7 @@
                     project.weighting = 0;
                     project.extraDescription = "Queued project, processing...<br>";
                 }
-                if (state.triggerTargets.includes(project)) {
+                if (state.allTriggerlikeTargets.includes(project)) {
                     project.weighting = 0;
                     project.extraDescription = "Active trigger, processing...<br>";
                 }
@@ -6008,8 +6071,8 @@
             this.priorityList.sort((a, b) => a.priority - b.priority);
         },
 
-        AddTrigger(requirementType, requirementId, requirementCount, actionType, actionId, actionCount) {
-            let trigger = new Trigger(this.priorityList.length, this.priorityList.length, requirementType, requirementId, requirementCount, actionType, actionId, actionCount);
+        AddTrigger(requirementType, requirementId, requirementCount, actionType, actionId, actionCount, enabled, enabledOverrides) {
+            let trigger = new Trigger(this.priorityList.length, this.priorityList.length, requirementType, requirementId, requirementCount, actionType, actionId, actionCount, enabled, enabledOverrides);
             this.priorityList.push(trigger);
             return trigger;
         },
@@ -6017,7 +6080,7 @@
         AddTriggerFromSetting(raw) {
             let existingSequence = this.priorityList.some(trigger => trigger.seq === raw.seq);
             if (!existingSequence) {
-                let trigger = new Trigger(raw.seq, raw.priority, raw.requirementType, raw.requirementId, raw.requirementCount, raw.actionType, raw.actionId, raw.actionCount);
+                let trigger = new Trigger(raw.seq, raw.priority, raw.requirementType, raw.requirementId, raw.requirementCount, raw.actionType, raw.actionId, raw.actionCount, raw.enabled, raw.enabledOverrides);
                 this.priorityList.push(trigger);
             }
         },
@@ -6048,6 +6111,1586 @@
 
             return false;
         },
+    }
+    
+    // Arbitrary code execution as a service.
+    class SnippetManager {
+        // Root for the main bit in settings. This needs to be made very early.
+        static settingsUIRoot = document.createElement("div");
+
+        // Resource list for custom trigger storage requirements
+        static customResourceDemands = [];
+        // Current active normal ish triggers
+        static activeTriggers = [];
+
+        static #evalCache = {};
+        static _executionStopped = new Set();
+        static _executionErrored = new Set();
+        static #lastRunData = {};
+        static _overrides = {};
+
+        // Key is snippet ID.
+        static _snippetUiDef = {};
+        static _snippetUiRedraw = true;
+        static _snippetUiIndicatorRedraw = true;
+
+        static #evolutionPhaseComplete = false;
+
+        static runSnippets() {
+            this.#lastRunData = {};
+            this.activeTriggers = [];
+            this.customResourceDemands = [];
+            this._overrides = {};
+
+            // Snippets run during evolution, but we reset the stopRunning() state one time after leaving it, at least for non-broken snippets.
+            // Most users probably won't think of the evolution phase, but some might want to script it to choose a run type.
+            // This creates a much more ergonomic API for challenge checks.
+            // Otherwise, snippets like if(!cataclysm) stopRunning() would look like they work while the user is developing them
+            // but would already have stopped running after a new run is started. (Unless it triggers a page refresh)
+            if (!this.#evolutionPhaseComplete) {
+                this.#evolutionPhaseComplete = state.goal !== "Evolution";
+                if (this.#evolutionPhaseComplete) {
+                    this._executionStopped = new Set(this._executionErrored);
+                }
+            }
+
+            // Recycle dead UIs
+            this._snippetUiDef = Object.fromEntries(
+                Object.entries(this._snippetUiDef).filter(([k, v]) => {
+                    if (!v.alive) { this._snippetUiRedraw = true; return false; }
+                    v.alive = false;
+                    return true;
+                })
+            );
+
+            if (Array.isArray(settingsRaw.snippets) && settingsRaw.snippets.length) {
+                let snippetsToRun = settingsRaw.snippets.filter((snip, i) => {
+                    let override = snip.activeOverrides?.length > 0 ? evaluateOverride(snip.activeOverrides, `snippet---${i}---activeOverrides`, "boolean") : OVERRIDE_NO_VALUE;
+                    return override !== OVERRIDE_NO_VALUE ? override : snip.active;
+                });
+                for (let snip of snippetsToRun) {
+                    if (this._executionStopped.has(snip.id)) {
+                        continue;
+                    }
+
+                    try {
+                        let code = this.#makeEval(snip);
+
+                        let result = code();
+                        // typeof null is object??? Really, JS?
+                        if (typeof result === "object" && result !== null) {
+                            Object.assign(this.#lastRunData, result);
+                        }
+                    }
+                    catch(e) {
+                        console.error("Snippet [%s] error: %o", snip.title, e);
+                        // Stop until user does something to fix it.
+                        this._executionStopped.add(snip.id);
+                        this._executionErrored.add(snip.id);
+                        this._snippetUiIndicatorRedraw = true;
+                        let msg = `Snippet [${snip.title}] error: ${e}. See the browser console for more information.`;
+                        GameLog.logDanger("special", msg, ['events', 'major_events']);
+                        displayScriptWarningNode("Snippet Error", `Error in snippet "${snip.title}". Snippet is temporarily disabled.\n${e}`, e?.stack);
+                    }
+                }
+            }
+
+            // Update global snippetData (all at once to make the behavior more predictable).
+            snippetData = Object.assign({}, this.#lastRunData);
+
+            if (this._snippetUiRedraw) {
+                this.redrawSnippetUI();
+            }
+
+            if (this._snippetUiIndicatorRedraw) {
+                this.updateSnippetIndicators();
+            }
+        }
+
+        static clickTriggers() {
+            let triggerActive = false;
+            for (let trigger of this.activeTriggers) {
+                if (trigger.click()) {
+                    triggerActive = true;
+                }
+            }
+            return triggerActive;
+        }
+
+        static prepSnippets() {
+            settingsRaw.snippets = settingsRaw.snippets.map(snip => {
+                snip.id = snip.id ?? this.randomId();
+                if (!Object.hasOwn(snip, 'active')) {
+                    snip.active = true;
+                }
+                return snip;
+            });
+
+            // Clean up snippet config for deleted snippets.
+            Object.keys(settingsRaw).forEach(sk => {
+                if (sk.startsWith("snippetCfg_")) {
+                    let match = sk.match(/^snippetCfg_([^_]+)_/);
+                    if (match && !settingsRaw.snippets.some(snip => snip.id === match[1])) {
+                        delete settingsRaw[sk];
+                        delete settings[sk];
+                    }
+                }
+            });
+        }
+
+        // Soft-reset all snippets.
+        static softResetAllSnippets() {
+            this.#evalCache = {};
+            this._executionStopped.clear();
+            this._snippetUiDef = {};
+            this._snippetUiRedraw = true;
+        }
+
+        // Soft-reset a single snippet. Used when updating the code.
+        static resetSnippet(snip) {
+            const snipId = snip.id;
+            // Deleting the eval cache will make new copies of many of its objects.
+            delete this.#evalCache[snipId];
+            // Undo stopRunning() effect and error effect
+            this._executionStopped.delete(snipId);
+            this._executionErrored.delete(snipId);
+            // Delete UI and force redraw
+            delete this._snippetUiDef[snipId];
+            this._snippetUiRedraw = true;
+            this._snippetUiIndicatorRedraw = true;
+        }
+
+        static checkSyntax(functionCode) {
+            // Simple eval check without the cache
+            try {
+                eval(`(function() { "use strict"; \n${functionCode}\n })`);
+            }
+            catch(e) {
+                return e;
+            }
+            return true;
+        }
+
+        static randomId() {
+            // These IDs are exposed to the user in the override screen, and should be shorter than an UUID
+            // (also some people self-host on a not-secure origin so we can't use crypto.randomUUID)
+            return 'a'.repeat(8).replace(/a/g, (m) => Math.floor(Math.random() * 36).toString(36));
+        }
+
+        static updateOverridesAndUi() {
+            Object.entries(this._overrides).forEach(([k, v]) => {
+                settings[k] = v;
+            });
+        }
+
+        static updateSnippetIndicators() {
+            this._snippetUiIndicatorRedraw = false;
+            $(".script-snippet-title-indicators").html("");
+            for (let i = 0; i < settingsRaw.snippets.length; ++i) {
+                let snip = settingsRaw.snippets[i];
+                let indicator = "";
+                if (this._executionStopped.has(snip.id)) indicator += `<span title="stopRunning() was called. Snippet is not running.">🧊</span>`;
+                if (this._executionErrored.has(snip.id)) indicator += `<span title="Snippet encountered an error. Snippet is not running.">⚠️</span>`;
+                if (indicator !== "") {
+                    $(`#script-snippets---${i} .script-snippet-title-indicators`).html(` ${indicator}`);
+                }
+            }
+        }
+
+        static redrawSnippetUI() {
+            let currentScrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+
+            // We're doing it now
+            this._snippetUiRedraw = false;
+
+            let snippetsWithUi = settingsRaw.snippets.filter(snip => {
+                return !!(this._snippetUiDef[snip.id]);
+            });
+            // Wipe contents first
+            this.settingsUIRoot.replaceChildren();
+            // Render snippets in order specified in source
+            for (let snip of snippetsWithUi) {
+                let ui = this._snippetUiDef[snip.id];
+                let snipRoot = $("<div>").appendTo(this.settingsUIRoot); // needs to be jquery
+
+                addSettingsHeader1(snipRoot, snip.title);
+                for (let uiElement of ui.elements) {
+                    switch (uiElement.type) {
+                        case "string":
+                            addSettingsString(snipRoot, uiElement.settingKey, uiElement.label, uiElement.hint ?? "");
+                            break;
+                        case "number":
+                            addSettingsNumber(snipRoot, uiElement.settingKey, uiElement.label, uiElement.hint ?? "");
+                            break;
+                        case "toggle":
+                            addSettingsToggle(snipRoot, uiElement.settingKey, uiElement.label, uiElement.hint ?? "");
+                            break;
+                        case "button":
+                            // TODO
+                            //add(snipRoot, uiElement.settingKey, uiElement.label, uiElement.hint ?? "");
+                            break;
+                        case "text":
+                            let text = document.createElement('div');
+                            text.innerText = uiElement.label;
+                            snipRoot.append(text);
+                            break;
+                        default: throw `Unexpected type ${uiElement.type}`;
+                    }
+                }
+            }
+
+            document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
+        }
+
+        // Similar to fastEval, but the code runs in a different, snippet-specific environment.
+        // We pass some arguments to the function to add extra callables.
+        static #makeEval(snip) {
+            const snippetKey = snip.id;
+            if (this.#evalCache[snippetKey]) {
+                return this.#evalCache[snippetKey];
+            }
+            // This needs to be called to get the actual cached function.
+            //
+            // This fnName mess exists to provide a better function name in the browser console if something goes wrong.
+            // Otherwise, it ends up attributed to this script itself, which is not ideal and hard to debug.
+            // How well it works may depend on browser settings too.
+            let fnName = `[Snippet] ${snip.title}`;
+            let executable = `(function(trigger, stopRunning, ui, settings) {
+                const resourceList = (list) => list;
+                const checkTypesDynamic = checkTypes;
+                const snippetState = {};
+                let _daily_last = -1;
+                let _daily_ret = undefined;
+                const daily = (dailyCode) => { if (game.global.race.species === "protoplasm") return null; if (game.global.stats.days !== _daily_last) { _daily_last = game.global.stats.days; _daily_ret = dailyCode(); } return _daily_ret; }
+                let once = (onceCode) => { let retVal = onceCode(); once = () => retVal; return retVal; }
+                return {[fnName]() { return ui.wrap(() => { "use strict"; \n${snip.code}\n });}};
+            })`;
+            // https://firefox-source-docs.mozilla.org/devtools-user/debugger/how_to/debug_eval_sources/index.html
+            // We don't want to put this raw notation in here or browsers might get confused, split the token up in the middle.
+            executable += "\n//" + "# " + "sourceURL=snippet." + encodeURI(snip.title) + ".js\n";
+            let fn = ((eval(executable)).apply(null, [
+                this.#makeTriggerFn(snip), // trigger() function. Pass an action and it will be triggered for one tick. You don't have to think about state.
+                this.#makeStopRunningFn(snip), // stopRunning() function. Stops running the snippet until its changed or the page is reloaded. Use for one-off script mod snippets.
+                this.#makeUi(snip), // ui object. See below.
+                this.#makeSettingsProxy(snip), // Proxy for "settings". Applies overrides in the right processing stage, even if the snippet runs late.
+            ]))[fnName];
+            // After all this work, we have a cached function set up in the right scope. Re-use this across invocations.
+            this.#evalCache[snippetKey] = fn;
+            return fn;
+        }
+
+        static #makeTriggerFn(snip) {
+            let fn = (triggerable, allowedActions) => {
+                if (triggerable instanceof Action || triggerable instanceof Technology) {
+                    // Silently ignore triggers for not-unlocked buildings, like normal triggers do
+                    if (typeof triggerable.isUnlocked === "function" && !triggerable.isUnlocked()) return;
+
+                    SnippetManager.activeTriggers.push(triggerable);
+                }
+                else if (typeof triggerable === "object") {
+                    // Custom resource list
+                    SnippetManager.customResourceDemands.push({
+                        name: snip.title,
+                        cause: "Snippet",
+                        cost: triggerable,
+                        allowedConflicts: allowedActions,
+                    });
+                }
+            };
+            // trigger() but only if we have less than "amount" count.
+            // This is very frequently used so it's nice to have a helper function.
+            fn.amount = (triggerable, amount) => {
+                if (triggerable instanceof Action && triggerable.count < amount) {
+                    return fn(triggerable);
+                }
+            };
+            // trigger() but only supports custom lists.
+            // Returns a boolean true if all costs in the list are currently satisfied.
+            fn.custom = (triggerable, allowedActions) => {
+                // Custom resource list
+                SnippetManager.customResourceDemands.push({
+                    name: snip.title,
+                    cause: "Snippet",
+                    cost: triggerable,
+                    allowedConflicts: allowedActions,
+                });
+
+                return !(Object.keys(triggerable).some((rn) => resources[rn].currentQuantity < triggerable[rn]));
+            }
+            return fn;
+        }
+
+        static #makeStopRunningFn(snip) {
+            return () => {
+                this._snippetUiIndicatorRedraw = true;
+                this._executionStopped.add(snip.id);
+            };
+        }
+
+        static #makeUi(snip) {
+            let lastUiHash = "";
+            let curUiHash = "";
+            let uiArr = [];
+            const settingForKey = (configKey) => `snippetCfg_${snip.id}_${configKey.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+            const addArr = (hashedParts, unhashedParts) => {
+                curUiHash += Object.entries(hashedParts).reduce((acc, [key, val]) => {return acc + key + val;}, "");
+                uiArr.push(unhashedParts ? Object.assign(hashedParts, unhashedParts) : hashedParts);
+            };
+            return {
+                wrap: (snippetFn) => {
+                    curUiHash = "";
+                    uiArr = [];
+                    let retVal = snippetFn();
+                    // UI can disappear if toggled by override.
+                    if (lastUiHash !== curUiHash || (lastUiHash !== "" && !SnippetManager._snippetUiDef[snip.id])) {
+                        if (curUiHash !== "") {
+                            SnippetManager._snippetUiDef[snip.id] = {
+                                alive: true,
+                                elements: uiArr,
+                            };
+                            SnippetManager._snippetUiRedraw = true;
+                        }
+                        // Else case when we deleted all UI options: alive left at false, will be collected next cycle.
+                    }
+                    else if (lastUiHash !== "") {
+                        SnippetManager._snippetUiDef[snip.id].alive = true;
+                    }
+                    lastUiHash = curUiHash;
+                    return retVal;
+                },
+                get(key, defValue) {
+                    // Get anything without making an UI element.
+                    // This only has very specific uses.
+                    let settingKey = settingForKey(key);
+                    return settings[settingKey] ?? defValue;
+                },
+                set(key, value) {
+                    let settingKey = settingForKey(key);
+                    settingsRaw[settingKey] = value;
+                    updateSettingsFromState();
+                },
+                text(label) {
+                    // Displays a piece of text. Has no setting or key associated with it.
+                    addArr({ type: "text", settingKey: "text", label, hint: null });
+                },
+                toggle: (key, label, defValue, hint) => {
+                    // Displays an on-off toggle with a label.
+                    let settingKey = settingForKey(key);
+                    addArr({ type: "toggle", settingKey, label, hint });
+                    if (typeof settingsRaw[settingKey] !== "boolean") {
+                        settingsRaw[settingKey] = Object.hasOwn(settingsRaw, settingKey) ? !!settingsRaw[settingKey] : defValue;
+                    }
+                    return settings[settingKey] ? !!settings[settingKey] : defValue;
+                },
+                string: (key, label, defValue, hint) => {
+                    // Displays a textbox with a label.
+                    let settingKey = settingForKey(key);
+                    addArr({ type: "string", settingKey, label, hint });
+                    if (typeof settingsRaw[settingKey] !== "string") {
+                        settingsRaw[settingKey] = Object.hasOwn(settingsRaw, settingKey) ? String(settingsRaw[settingKey]) : defValue;
+                    }
+                    return settings[settingKey] ? String(settings[settingKey]) : defValue;
+                },
+                number: (key, label, defValue, hint) => {
+                    // Displays a textbox with a label, expecting a number.
+                    let settingKey = settingForKey(key);
+                    addArr({ type: "number", settingKey, label, hint });
+                    if (typeof settingsRaw[settingKey] !== "number") {
+                        settingsRaw[settingKey] = Object.hasOwn(settingsRaw, settingKey) ? parseInt(settingsRaw[settingKey], 10) : defValue;
+                    }
+                    return settings[settingKey] ? parseInt(settings[settingKey], 10) : defValue;
+                },
+                button: (key, label, hint) => {
+                    // Like a toggle. Returns true for *one* tick when pressed.
+                    let settingKey = settingForKey(key);
+                    addArr({ type: "button", settingKey, label, hint });
+                    // Can be triggered with overrides, if so, it's the user responsibility to do it correctly. delete may be a no-op.
+                    if (settings[settingForKey(key)]) {
+                        delete settingsRaw[settingForKey(key)];
+                        return true;
+                    }
+                    return false;
+                },
+            };
+        }
+
+        static #makeSettingsProxy(snip) {
+            return new Proxy(settings, {
+                // Will apply during next overrides phase for 1 tick.
+                set(trg, settingKey, newValue) {
+                    // Apply during current tick (not very useful if we're running late)
+                    trg[settingKey] = newValue;
+
+                    // Apply during next tick
+                    SnippetManager._overrides[settingKey] = newValue;
+                    // TODO: Conflict handling?
+
+                    return true;
+                }
+            });
+        }
+    }
+
+    // Snippet editor related stuff all goes here. Turns out it's a lot of stuff!
+    class SnippetEditorManager {
+        static _initiatedMonacoLoad = false;
+        static _firstMonacoSetupDone = false;
+
+        static _currentlyEditingSnippet = null;
+        static _currentlyEditingMonaco = null;
+
+        static _unloadEventRegistered = false;
+
+        // We need another layer of wrapper around monaco-export's callback, because we may or may not have to load it in dynamically
+        // based on how the user loads the userscript.
+        static #monacoLoadCallback(callback) {
+            const monacoFallbackUrl = "https://kewne7768.github.io/monaco-export/monaco-export.js";
+            // If running in UserScript sandbox, the userscript extension may put the pre-loaded Monaco in the "safe" window context only.
+            // In that case, `win` will point to the unsafeWindow.
+            // This is fine, but the hook would end up in the unsafeWindow if dynamic load is needed.
+            // So, if that happened, we copy the hook from the safe window to the unsafeWindow.
+            if (needSandboxBypass && window.monacoReadyHook && !unsafeWindow.monacoReadyHook) {
+                unsafeWindow.monacoReadyHook = window.monacoReadyHook;
+            }
+            win.monacoReadyHook = (win.monacoReadyHook ?? []);
+            win.monacoReadyHook.push(() => { callback(); });
+            if (!win.monacoReadyHook?.isReady && !this._initiatedMonacoLoad) {
+                // Prep to load
+                this._initiatedMonacoLoad = true;
+                let el = document.createElement("script");
+                el.src = monacoFallbackUrl;
+                el.onerror = () => alert("Failed to load Monaco. Code editor is not functional.");
+                document.body.appendChild(el);
+            }
+        }
+
+        // Only has to run once per game session.
+        static #firstMonacoSetup() {
+            if (this._firstMonacoSetupDone) return;
+            this._firstMonacoSetupDone = true;
+
+            // Set up defaults and library.
+            monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+                // Target shouldn't matter because it's not compiled, ES2022 should be well supported now.
+                target: monaco.languages.typescript.ScriptTarget.ES2022,
+                lib: ["es2022", "dom"],
+                allowJs: true,
+                checkJs: true,
+                allowNonTsExtensions: true, // doesn't seem documented but it's in one of the examples and everything breaks without it
+            });
+            monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                // 1108: Top level return disallowed -> Doesn't apply to us, return is a feature.
+                // 2304: Cannot find name 'KeyManager' -> Let people reference things not in the docs without complaining.
+                diagnosticCodesToIgnore: [1108, 2304],
+                noSemanticValidation: false,
+                noSyntaxValidation: false,
+            });
+
+            // Add library.
+            let fakeUri = "ts:lib/snippet.d.ts";
+            let libContents = this.getTsDecl();
+            monaco.languages.typescript.javascriptDefaults.addExtraLib(libContents, fakeUri);
+            monaco.editor.createModel(libContents, "typescript", monaco.Uri.parse(fakeUri));
+        }
+
+        // TypeScript declarations to help the user write their stuff. It's not 100% complete, it can never be, but it should help
+        // making simple things like dynamic triggers, etc.
+        static getTsDecl() {
+            const mapResource = (c) => ["Power", "Support"].includes(c) ? c : "Resource";
+
+            // We need to compute a few types from checkTypes.
+            let evalFnCheckTypes = Object.keys(checkTypes).map(k => `'${k}'`).join('|');
+            let evalFnArgTypes = Object.entries(checkTypes).map(([ctName, ct]) => {
+                if (ctName === "ResetType") {
+                    // The special case ("select" type with premade autogenerated HTML).
+                    // Generate it ourselves instead.
+                    // Also allow the basic string type, so that people dynamically coming up with stuff won't hate it as much.
+                    // Otherwise, something like _('ResetType', uni === 'magic' ? 'collapse' : 'whitehole') will be disallowed
+                    // because TS only knows it's a "string".
+                    let tsValids = prestigeTypes.map(k => `'${k.val}'`).join('|');
+                    return `EvalFn extends '${ctName}' ? (${tsValids}) : `;
+                }
+                else if (["string", "number", "boolean"].includes(ct.arg)) {
+                    // The simple ones. Yay!
+                    return `EvalFn extends '${ctName}' ? ${ct.arg} : `;
+                }
+                else if (["list", "list_cb", "select_cb"].includes(ct.arg)) {
+                    // Special cases: buildings/techs/arpas
+                    if (ct.options?.list === buildingIds) {
+                        return `EvalFn extends '${ctName}' ? BuildingIdKey : `;
+                    }
+                    else if (ct.options?.list === techIds) {
+                        return `EvalFn extends '${ctName}' ? TechIdKey : `;
+                    }
+                    else if (ct.options === argType.project.options) {
+                        return `EvalFn extends '${ctName}' ? ArpaIdKey : `;
+                    }
+
+                    // Oh no. Turn it into an array of valid keys. We can't do anything with the values here, sadly.
+                    let keysArray = (
+                        (ct.arg === "list") ? Object.keys(ct.options.list) :
+                        (ct.arg === "list_cb") ? Object.keys(ct.options()) :
+                        (ct.arg === "select_cb") ? ct.options().map(o => o.val) :
+                        ["never"]
+                    );
+                    let tsValids = keysArray.map(k => `'${k}'`).join('|');
+                    return `EvalFn extends '${ctName}' ? (${tsValids}) : `;
+                }
+                else {
+                    throw `Invalid checkTypes arg in ${ctName}: ${ct.arg}`;
+                }
+            }).join("\n");
+
+            // Generate setting name map & valid setting names. We exclude dynamically generated keys, anything to do with triggers and setting names that break the generation.
+            const excludedSettingRegex = /(^snippetCfg.*|^triggers$|")/;
+            const includedSettingTypes = ["string", "number", "boolean"];
+            let settingNamesIface = Object.entries(settingsRaw).map(([settingName, value]) => {
+                if (excludedSettingRegex.test(settingName)) return "";
+                if (!includedSettingTypes.includes(typeof value)) return "";
+                return `"${settingName}": ${typeof value};`
+            }).filter(s => s !== "").join("\n");
+
+            // Be very careful when editing this because errors can be easily ignored.
+            // There is a see declarations button commented out.
+            return `
+export {};
+declare global {
+    // Part 0: Utility
+    // Most of the time users will want specific hardcoded strings for checkTypes.
+    // This adds |string to them if needed, useful for unchecked versions.
+    type AllowStringTypeAsFallback<BaseType> = BaseType extends string ? BaseType|string : BaseType;
+
+    // Part 1: Snippet specific features
+
+    /** Runs your provided callback once and caches the result. Can be used to compute lookup tables, etc. */
+    function once<OnceRet>(callback: () => OnceRet): OnceRet;
+
+    /** Runs your provided callback once per game day, with the result cached for calls in between. Will not run during evolution, returning null instead. */
+    function daily<DailyRet>(callback: () => DailyRet): DailyRet|null;
+
+    /** A place for your snippet to put any temporary data. Contents will be preserved between runs. */
+    const snippetState: {[key: string|number]: any;};
+
+    // Trigger functions
+    const trigger: {
+        /**
+         * Triggers an Action on your snippet's behalf.
+         * It will keep running until you stop making the trigger() call.
+         *
+         * @example Example: After Stargate built, build 50 attractors
+         * \`\`\`
+         * if (buildings.BlackholeStargateComplete.count && buildings.BadlandsAttractor.count < 50) {
+         * trigger(buildings.BadlandsAttractor);
+         * }
+         * \`\`\`
+         */
+        <T extends Action | Technology>(action: T): void;
+
+        /**
+         * Triggers an Action up to a given total building number count, inclusive.
+         * This should only be used for buildings and ARPAs. Don't use on research or custom resource lists.
+         * @example Black Hole, No Hole
+         * \`\`\`
+         * trigger.amount(projects.SuperCollider, 99);
+         * \`\`\`
+         */
+        amount<T extends Action>(action: T, count: number): void;
+
+        /**
+         * Triggers a custom resource list.
+         * This list is an object of resource keys to amounts obtained via resourceList (technically not necessary, it's OK to pass one directly too if you're careful).
+         * The script will work towards obtaining and stockpiling these resources.
+         * Custom resource lists can optionally include a list of permissible buildings that are allowed to spend those resources as second parameter,
+         * which can help if you know some buildings are still worth building despite the stockpiling.
+         * That is also helpful if you already know what you're going to spend it on and are dynamically calculating the required quantities.
+         * @example Save up Mythril, but Zigs and Archaeology Digs can spend them
+         * \`\`\`
+         * trigger.custom(resourceList({ Mythril: 1000000 }), [buildings.RedZiggurat, buildings.RuinsArchaeology]);
+         * \`\`\`
+         */
+        custom<T extends ResourceList>(action: T, allowedActions?: (Action | Technology)[] | undefined): boolean;
+    };
+
+    /**
+     * Stops running your snippet until the page is reloaded.
+     * Useful if you can determine it's not needed anymore (patched everything, wrong challenges, etc).
+     * This is preferred to once() if both solutions would work.
+     * Note changes to your snippet can result in the snippet becoming active again.
+     */
+    function stopRunning(): void;
+    /**
+     * Returns a resource list. This makes it nicer to pass custom resources to trigger() as there'll be autocomplete help.
+     * Technically optional.
+     * 
+     * @example Example
+     * \`\`\`
+     * trigger(resourceList({Mythril: 100000, Bolognium: 1234567}));
+     * \`\`\`
+     */
+    function resourceList<IncludedResources extends ResourceList>(list: IncludedResources): ResourceList&IncludedResources;
+    /**
+     * UI functions. You must call these on every tick for them to work.
+     * Being "too smart" about what you call will hide certain options from the user, so simple programming is recommended:
+     *
+     * @example Example usage
+     *
+     * \`\`\`
+     * let checkbox = ui.toggle();
+     * let howMany = ui.number();
+     * if (checkbox) { doThingsWithHowManyHere(howMany); }
+     * \`\`\`
+     */
+    const ui: {
+        /** Display a piece of text. */
+        text(label: string): void;
+        /** Show a field that will be a boolean on/off toggle, and return the value of that field. */
+        toggle(key: string, label: string, defValue: boolean, hint?: string): boolean;
+        /** Show a field that will have a string in it, and return the value of that field. */
+        string(key: string, label: string, defValue: string, hint?: string): string;
+        /** Show a field that will have a number, and return the value of that field. */
+        number(key: string, label: string, defValue: number, hint?: string): number;
+        /** Show a clickable button. When pressed, this function will return true for one time only. TODO: Not implemented! */
+        //button(key: string, label: string, hint?: string): boolean;
+        /** Get a setting's value. May be useful for persisted state, but should be avoided otherwise as the user is not given a way to change it. */
+        get(key: string, defValue?: any): any;
+        /** Set a setting's value. May be useful for persisted state. */
+        set(key: string, value: any): void;
+    };
+
+    type ResourceKey = keyof typeof resources;
+    type ResourceList = {[key in keyof typeof resources]?: number;};
+
+    // Part 2: Script interfaces
+    class Action {
+        /** Tries to buy the building or research. */
+        click(): boolean;
+        /** Returns true if the building is unlocked (button exists somewhere you can see). */
+        isUnlocked(): boolean;
+        /** For technologies or for missions, returns true if completed. */
+        isComplete(): boolean;
+        /** Returns true if possible autoBuild candidate (unlocked, enabled, below max). */
+        isAutoBuildable(): boolean;
+
+        /**
+         * Without max: Returns true if it's currently possible to buy the building.
+         * With max: Returns true if there's enough storage (building font is not red).
+         */
+        isAffordable(max?: boolean): boolean;
+        /** Whether the action is clickable is determined by whether it is unlocked, affordable and not a "permanently clickable" action */
+        isClickable(): boolean;
+        /** ID value including location, as used in setting names and override evals, eg "space-space_barracks". */
+        settingId: BuildingIdKey; // This is a bit of a lie, this is only true for buildings, but buildings use the general Action.
+        /** Base no-location ID value, eg "space_barracks". */
+        id: string;
+        /** Script's name for the building, eg "Red Marine Barracks". */
+        name: string;
+        /** Localized in-game name of the building, eg "Marine Garrison". */
+        title: string;
+        /** How much of the building you have. */
+        count: number;
+        /** How much of the building are intended to be powered on. Note: if power/support draw fails, the real number can be lower. */
+        stateOnCount: number;
+        /** How much of the building are intended to be powered off. */
+        stateOffCount: number;
+        /** Tries to change the amount of powered buildings, relative to current. adjustCount can be positive or negative. */
+        tryAdjustState(adjustCount: number): boolean;
+
+        /** Cost for next one */
+        cost: ResourceList;
+
+        /** Many more properties and methods exist and aren't yet documented. */
+        [key: string]: any;
+    }
+
+    /** ARPA. */
+    class Project extends Action {
+        /** Progress towards next one, number from 0 to 99. */
+        progress: number;
+    }
+
+    /** Research. */
+    class Technology {
+        /** Whether the tech is currently available for research. Doesn't include Precognition or check for required knowledge. Returns false if already researched. */
+        isUnlocked(): boolean;
+        /** Whether isUnlocked() and currently affordable (button is lit up to click). */
+        isClickable(): boolean;
+        /** Whether already researched or not. Note: the game doesn't differentiate between some forking techs correctly. */
+        isResearched(): boolean;
+        /** Try to research this tech. Returns true if believed to be successful. */
+        click(): boolean;
+
+        /** Cost */
+        cost: ResourceList;
+
+        id: string;
+        title: string;
+    }
+
+    /** Representation of a resource. */
+    class Resource {
+        /** How much of the resource you have. */
+        currentQuantity: number;
+        /** Current resource cap. */
+        maxQuantity: number;
+        /** How much of the resource you're gaining or losing, per second. */
+        rateOfChange: number;
+        /** It's complicated. */
+        maxCost: number;
+        /** It's complicated. */
+        storageRequired: number;
+        /** How much of this resource is demanded by triggers/etc. */
+        requestedQuantity: number;
+        /** Some kind of change to production or consumption of this resource was made this tick (informs the script that it should be careful making more changes). */
+        incomeAdusted: boolean;
+        /** Range of how much of this resource we have compared to the most expensive autoBuild target. 2.0 means we have 2x the amount of that. */
+        usefulRatio: number;
+        /** Range of how much the storage is filled. 0.6 is 60% full. */
+        storageRatio: number;
+        /** Time in seconds until full */
+        timeToFull: number;
+        /** Time in seconds until we've reached storageRequired */
+        timeToRequired: number;
+
+        /** Displayed resource name */
+        title: string;
+        /** Game ID of resource. */
+        id: ResourceKey;
+
+        // All the getters... TODO: document
+        autoCraftEnabled: boolean;
+        craftWeighting: number;
+        craftPreserve: number;
+        autoStorageEnabled: boolean;
+        storagePriority: number;
+        storeOverflow: boolean;
+        minStorage: number;
+        maxStorage: number;
+        marketPriority: number;
+        autoBuyEnabled: boolean;
+        autoBuyRatio: number;
+        autoSellEnabled: boolean;
+        autoSellRatio: number;
+        autoTradeBuyEnabled: boolean;
+        autoTradeSellEnabled: boolean;
+        autoTradeWeighting: number;
+        autoTradePriority: number;
+        galaxyMarketWeighting: number;
+        galaxyMarketPriority: number;
+
+        /** Resource treated as if more is required at high priority. */
+        isDemanded(): boolean;
+        /** Resource production is meaningful. */
+        isUseful(): boolean;
+        /** Is visible. */
+        isUnlocked(): boolean;
+
+        /** Demand X of this resource to be made. */
+        requestQuantity(req: number): void;
+
+        /** Many more properties and methods exist and aren't yet documented. */
+        [key: string]: any;
+    }
+    /** Representation of current power. */
+    class Power extends Resource {
+    }
+    /** Representation of current planetary support. */
+    class Support extends Resource {
+        supportId: string;
+    }
+
+    // Part 3: Common script features
+    /** Building objects. */
+    const buildings: {
+        ${Object.keys(buildings).reduce((acc, bn) => acc + "/** " + buildings[bn].name + " */ " + bn + ": Action;\n", "")}
+    };
+    /** Resource objects. */
+    const resources: {
+        ${Object.keys(resources).reduce((acc, rn) => acc + "/** " + resources[rn].title + " */ " + rn + ": " + mapResource(resources[rn].constructor.name) + ";\n", '')}
+    };
+    /** ARPA project objects. */
+    const projects: {
+        ${Object.keys(projects).reduce((acc, pn) => acc + "/** " + projects[pn].title + " */ " + pn + ": Project;\n", '')}
+    };
+    /** Access buildings by game ID. */
+    type BuildingIdKey = ${Object.keys(buildingIds).map(k => "'" + k + "'").join('|')};
+    const buildingIds: { [key in BuildingIdKey]: Action; }
+    /** Access ARPA projects by game ID. */
+    type ArpaIdKey = ${Object.keys(arpaIds).map(k => "'" + k + "'").join('|')};
+    const arpaIds: { [key in ArpaIdKey]: Project; }
+    /** Access research by game ID. */
+    type TechIdKey = ${Object.keys(techIds).map(k => "'" + k + "'").join('|')};
+    const techIds: { [key in TechIdKey]: Technology; }
+    // Settings. (settings is really a proxy, but that's an implementation detail)
+    // Interface that looks like settings/settingsRaw.
+    interface SettingNames {
+        ${settingNamesIface}
+        // Generic fallback.
+        [key: string]: string|number|boolean|object;
+    }
+    /** Access or modify script settings. Must be set every tick to maintain effect. Modified settings will count as higher priority than overrides, so be careful. To un-set, simply stop setting it every tick. */
+    const settings: SettingNames;
+    /** Access or modify the script's base settings. Changing this may not behave as expected because the changed settings don't get saved to the browser storage. */
+    const settingsRaw: SettingNames;
+    /**
+     * Communicate with other snippets via snippetData by returning a set of keys and values in your function.
+     * Note that the execution order of snippets is not defined, so you should make sure that nothing happens if the data is missing.
+     * An easy way to make sure is to specify a value that will always be present.
+     * Otherwise things may be very buggy for a few ticks when reloading the game.
+     * 
+     * @example Provide toggles in a control panel snippet
+     * \`\`\`
+     * return {
+     *   controlPanelRunning: true,
+     *   doingAchievementDreaded: ui.toggle('doing-dreaded', 'Disable Dreadnought trigger', false),
+     * };
+     * \`\`\`
+     * @example Retrieve and work with that info in another snippet
+     * \`\`\`
+     * if ((!snippetData['controlPanelRunning'] || !snippetData['doingAchievementDreaded']) && buildings.Dreadnought.count < 2) trigger(buildings.Dreadnought);
+     * \`\`\`
+     */
+    const snippetData: { [key: string]: any; };
+
+    // Part 4: Override Eval/CheckTypes interop. Unknowns get nevered.
+    type EvalFnCheckType = ${evalFnCheckTypes};
+    type EvalFnArg<EvalFn extends EvalFnCheckType> = ${evalFnArgTypes} never;
+    // As much as I'd love to generate this, it's impossible unless the script itself is TypeScript-compiled...
+    type EvalFnReturn<EvalFn extends EvalFnCheckType> =
+        EvalFn extends 'String' ? number :
+        EvalFn extends 'Number' ? number :
+        EvalFn extends 'Boolean' ? boolean :
+        EvalFn extends 'SettingDefault' ? any :
+        EvalFn extends 'SettingCurrent' ? any :
+        EvalFn extends 'Eval' ? any :
+        EvalFn extends 'BuildingUnlocked' ? boolean :
+        EvalFn extends 'BuildingClickable' ? boolean :
+        EvalFn extends 'BuildingAffordable' ? boolean :
+        EvalFn extends 'BuildingCount' ? number :
+        EvalFn extends 'BuildingEnabled' ? number :
+        EvalFn extends 'BuildingDisabled' ? number :
+        EvalFn extends 'BuildingQueued' ? boolean :
+        EvalFn extends 'ProjectUnlocked' ? boolean :
+        EvalFn extends 'ProjectCount' ? number :
+        EvalFn extends 'ProjectProgress' ? number :
+        EvalFn extends 'JobUnlocked' ? boolean :
+        EvalFn extends 'JobCount' ? number :
+        EvalFn extends 'JobMax' ? number :
+        EvalFn extends 'JobWorkers' ? number :
+        EvalFn extends 'JobServants' ? number :
+        EvalFn extends 'ResearchUnlocked' ? boolean :
+        EvalFn extends 'ResearchComplete' ? boolean  :
+        EvalFn extends 'ResourceUnlocked' ? boolean :
+        EvalFn extends 'ResourceQuantity' ? number :
+        EvalFn extends 'ResourceStorage' ? number :
+        EvalFn extends 'ResourceMaxCost' ? number :
+        EvalFn extends 'ResourceIncome' ? number :
+        EvalFn extends 'ResourceRatio' ? number :
+        EvalFn extends 'ResourceSatisfied' ? boolean :
+        EvalFn extends 'ResourceSatisfyRatio' ? number  :
+        EvalFn extends 'ResourceDemanded' ? boolean :
+        EvalFn extends 'RaceId' ? string :
+        EvalFn extends 'RacePillared' ? boolean :
+        EvalFn extends 'RaceGenus' ? boolean :
+        EvalFn extends 'MimicGenus' ? boolean :
+        EvalFn extends 'TraitLevel' ? boolean :
+        EvalFn extends 'ResetType' ? boolean :
+        EvalFn extends 'Challenge' ? boolean :
+        EvalFn extends 'Universe' ? boolean :
+        EvalFn extends 'Government' ? boolean :
+        EvalFn extends 'Governor' ? boolean :
+        EvalFn extends 'Queue' ? boolean :
+        EvalFn extends 'Date' ? number :
+        EvalFn extends 'Soldiers' ? number :
+        EvalFn extends 'PlanetBiome' ? boolean :
+        EvalFn extends 'PlanetTrait' ? boolean :
+        EvalFn extends 'Industry' ? number :
+        EvalFn extends 'Other' ? number|string : never; // TODO: Maybe see a way if we can narrow this (only rname is string)...
+
+    function _<EvalFn extends EvalFnCheckType>(checkType: EvalFn, arg: EvalFnArg<EvalFn>): EvalFnReturn<EvalFn>;
+    const checkTypes: {
+        [EvalFn in EvalFnCheckType]: {
+            fn: (arg: EvalFnArg<EvalFn>) => EvalFnReturn<EvalFn>,
+        }
+    };
+    const checkTypesDynamic: {
+        [EvalFn in EvalFnCheckType]: {
+            fn: (arg: AllowStringTypeAsFallback<EvalFnArg<EvalFn>>) => EvalFnReturn<EvalFn>,
+        };
+    };
+
+    // Part 5: good luck, you're on your own.
+    /** Access Evolve's debug data directly. Same as "evolve" in your browser console. */
+    const game: { [key: string]: any; };
+    /** Access Evolve's debug data directly. Same as "evolve" in your browser console. */
+    const evolve: { [key: string]: any; };
+    /** Misc stuff. */
+    const poly: { [key: string]: any; };
+}
+`;
+        }
+
+        // https://developer.chrome.com/docs/web-platform/page-lifecycle-api#the_beforeunload_event
+        // Browsers really don't want this event registered persistently, but it's the only way we can stop users from losing their work...
+        static _beforeUnloadEvent(e) {
+            let t = SnippetEditorManager; // Not bound, can't .bind because we need the same function.
+            if (t._currentlyEditingMonaco && t._currentlyEditingSnippet) {
+                let editorText = t._currentlyEditingMonaco.getValue();
+                if (editorText !== t._currentlyEditingSnippet.code && editorText.length) {
+                    localStorage.setItem("EvolveScriptSnippetEditPrecloseBackup", editorText);
+                    // In Firefox, calling beforeunload -> preventDefault and having the user reject it REALLY breaks the game's prestiges very very badly,
+                    // until the tab is closed and remade. Even persists across refreshes and disabling the script entirely!
+                    // So it's OK, we make a backup anyway.
+                    //
+                    // In particular: the web worker does very weird things (game thinks it works but it stops sending ticks)
+                    // and the page self-refreshes are automatically cancelled meaning you need to F5 manually.
+                    // This breaks prestiges, but even buttons like restore backup become dysfunctional.
+                    // This might be a Firefox bug, it is documented that beforeunload may break caching.
+                    // But it only seems to really break if preventDefault or returnValue is used to make the user confirm.
+                    // Especially if the user says no, that's almost 100% reliable.
+                    // (This was a fun one to debug. Leaving this note here because having a reject dialog seems like an obvious addition.)
+                    // (TODO: Transform into visibilitychange or timer based backup instead.)
+                    //e.returnValue = "Close editor with unsaved changes?";
+                    //e.preventDefault();
+                }
+            }
+        }
+
+        static #setUnloadEventRegistered(newState) {
+            if (newState === this._unloadEventRegistered) {
+                return;
+            }
+            this._unloadEventRegistered = newState;
+
+            if (newState) {
+                win.addEventListener("beforeunload", this._beforeUnloadEvent);
+            }
+            else {
+                win.removeEventListener("beforeunload", this._beforeUnloadEvent);
+            }
+
+        }
+
+        static openEditorModal(snip) {
+            // Clean up previous session.
+            this.finishSession();
+
+            this._currentlyEditingSnippet = snip.readonly ? structuredClone(snip) : snip;
+
+            const lightTheme = ["light", "gruvboxLight"].includes(game.global.settings.theme);
+
+            // Make the big modal.
+            let bigModal = $('<div style="position: absolute; display: flex; flex-direction: column; gap: 0.2em; top: 0; left: 0; margin: 0; padding: 0; width: 100%; height: 100%; min-height: 100%; background: #282828; z-index: 1000" id="script-monaco-modal-container">');
+            // Add now-loading and make visible.
+            let loadingPlaceholder = $('<div style="font-size: 32px; display: flex; justify-content: center; align-items: center; color: white">Now Loading...</div>');
+            // Cancel button
+            $('<button style="font-size: 32px">Cancel</button>').appendTo(bigModal).on("click", () => {
+                this.finishSession();
+                if (win.monacoReadyHook?.splice) win.monacoReadyHook.splice();
+            });
+            bigModal.append(loadingPlaceholder).appendTo(document.body);
+
+            this.#monacoLoadCallback(() => {
+                this.#setUnloadEventRegistered(true);
+
+                // Need empty place to put it, get rid of the now loading screen.
+                bigModal.empty();
+                this.#firstMonacoSetup();
+
+                // Make the button bar.
+                let buttonBar = $('<div id="script-monaco-modal-buttonbar" style="height: 2em; display: flex; justify-content: center; align-items: left; gap: 20px">');
+                let titleElem = $('<input type="text" style="width: 400px">').val(snip.title).appendTo(buttonBar);
+                if (snip.readonly) {
+                    $(`<button disabled>Can't save, read-only</button>`).appendTo(buttonBar);
+                }
+                else {
+                    let saveElem = $('<button>Save</button>');
+                    saveElem.appendTo(buttonBar);
+                    saveElem.on("click", () => {
+                        let val = titleElem.val();
+                        // Let's block some evil names that might break things if we use them as a key in an object
+                        if (["prototype", ...Object.getOwnPropertyNames(Object.prototype)].includes(val)) val = `Invalid name ${val}`;
+                        snip.title = val;
+                        snip.code = this._currentlyEditingMonaco.getValue();
+                        updateSettingsFromState();
+                        SnippetManager.resetSnippet(snip);
+                        this.finishSession();
+                        updateSnippetSettingsContent();
+                    });
+                }
+                let closeElem = $('<button>Close</button>').appendTo(buttonBar);
+                closeElem.on("click", () => {
+                    if (!snip.readonly && snip.code !== this._currentlyEditingMonaco.getValue()) {
+                        if (!confirm("Close editor with unsaved changes?")) {
+                            return;
+                        }
+                    }
+
+                    this.finishSession();
+                });
+                let seeDeclElem = $('<button>Decls</button>').appendTo(buttonBar).css(localStorage.getItem("EvolveScriptSnippetEditShowDeclsButton") ? {} : {display: "none"});
+                seeDeclElem.on("click", () => {
+                    SnippetEditorManager._currentlyEditingMonaco.setModel(monaco.editor.getModels()[0]);
+                });
+                buttonBar.appendTo(bigModal);
+
+                // Make the actual editor.
+                let wrap = $('<div id="script-monaco-modal-editor" style="width: 100%; height: 100%">').appendTo(bigModal);
+                // If you want to customize these, set settingsRaw.snippetsMonacoExtraSettings = {};
+                // (you can set it in a snippet!)
+                // https://microsoft.github.io/monaco-editor/docs.html#interfaces/editor.IStandaloneEditorConstructionOptions.html
+                this._currentlyEditingMonaco = monaco.editor.create(wrap[0], Object.assign({}, {
+                    value: snip.code,
+                    language: "javascript",
+                    automaticLayout: true,
+                    theme: lightTheme ? "vs" : "vs-dark",
+                    readOnly: Boolean(snip.readonly),
+                }, settingsRaw.snippetsMonacoExtraSettings || {}));
+            });
+        }
+
+        static openDeclModal() {
+            this.openEditorModal({
+                readonly: true,
+                id: "decl",
+                title: "API definition",
+                code: this.getTsDecl(),
+            });
+        }
+
+        static finishSession() {
+            this.#setUnloadEventRegistered(false);
+
+            if (this._currentlyEditingMonaco) {
+                this._currentlyEditingMonaco.dispose();
+                this._currentlyEditingMonaco = null;
+            }
+
+            $("#script-monaco-modal-container").remove();
+        }
+    }
+
+    /*
+     * Target schema for Evolve_UserScript_PrestigeDB:
+     * - resets: [{
+     * date: 12345 // Date.now(): Unix timestamp in milliseconds
+     * reset: 1234 // ingame reset count
+     * days: 12345 // game days
+     * prestigeType: "ascension" // same as script
+     * alevel: 1|2|3|4|5 // 0*-4*, same as game/script
+     * species: "custom" // species id
+     * customSpeciesName: null | "Wisp" // IF species is set to custom, the name of the custom species used. null for non-custom
+     * universe: "magic",
+     * note: "Wow, this one sucked." | null // User-inputted note
+     * graphExclude: false // If true, filters from graph displays, set by user in TBD UI to remove bad/special/etc runs
+     * logString: "Reset: Ascension, Species: Custom" // user-customized string
+     * stars: ["junk_gene"] // Challenges that contribute to alevel.
+     * challenges: ["steelen", "joyless"] // Challenges that don't contribute to alevel. Separated for easier filtering.
+     * milestones: { "tech-merchandising": 1234, "TouristCenter": 2345 } // Set by snippet hook script.
+     * rewards: {} // Set by snippet hook script. Intended use is to store reward info.
+     * extra: {} // Set by snippet hook script. Intended use is to store misc data.
+     * }, more of that]
+     * For future notes: no object key will ever start with "x". Snippet hooks should start their custom fields with an x, if extra doesn't suffice.
+     *
+     * Markers exist for the user UI only. They're a way to store dateStart.
+     * These can be prestigeType bound.
+     * This is NYI but the plan is to make it something like this:
+     * markers: [{
+     * id: 1 // autoassigned
+     * dateStart: 12345 // starting at Unix timestamp in milliseconds
+     * prestigeType: "ascension" | null // Some markers are only relevant for a given prestigeType
+     * name: "Went to magic" // User-inputted name
+     * note: "Trying magic T4 farm" // User-inputted note
+     * }, more of that]
+     * For future notes: no object key will ever start with "x".
+    */
+
+    // Wow, IndexedDB sure is an API...
+    // Everything is async. This is very problematic for us, because we have little time when we want to add a prestige reset,
+    // due to the game refreshing at that very same time.
+    // It will *probably* complete in time, but who knows? And it would really suck to lose it...
+    // So: we stuff it into localStorage (synchronous, should delay the attempt to reload the page).
+    // We also *try* to commit it, and if we succeeded, we delete the entry in localStorage.
+    // If we don't make it, we commit it on the next start.
+    class PrestigeDBManager {
+        static _using = false;
+        static _openDB = null;
+        static _openDBRequest = null;
+        static _entryHooks = {};
+
+        static _handleError(e) {
+            console.error("PrestigeDB: %o", e);
+        }
+
+        static init() {
+            if (!this._using && settingsRaw.prestigeDBenabled) {
+                this._using = true;
+                this.open();
+            }
+        }
+
+        static open() {
+            // Request data persist. If the user declines, too bad for them, I guess.
+            navigator.storage.persist();
+
+            this._openDBRequest = win.indexedDB.open("Evolve_UserScript_PrestigeDB", 1);
+            this._openDBRequest.onerror = this._handleError;
+            // So first you open it with a higher version number and _then_ you assign the event handler.
+            // Nowhere in the docs is this mentioned as a completely stupid thing.
+            this._openDBRequest.onupgradeneeded = (e) => {
+                const db = this._openDBRequest.result;
+                db.onerror = this._handleError;
+                db.onabort = this._handleError;
+
+                console.log("PrestigeDB: Upgrading version from %d to %d.", e.oldVersion, e.newVersion);
+                let currentVersion = e.oldVersion;
+
+                // It starts at 0, so 0 -> 1 is initial creation.
+                if (currentVersion < 1) {
+                    const resetsStore = db.createObjectStore("resets", {
+                        autoIncrement: true,
+                    });
+                    resetsStore.createIndex("reset", "reset");
+                    resetsStore.createIndex("date", "date");
+                    resetsStore.createIndex("prestigeType", "prestigeType");
+
+                    // Markers: User-inserted markers. They live at a dateStart, used to indicate a change made between resets after that date.
+                    // Can be used to filter arbitrary periods.
+                    const markersStore = db.createObjectStore("markers", {
+                        autoIncrement: true,
+                    });
+                    markersStore.createIndex("dateStart", "dateStart");
+                    markersStore.createIndex("prestigeType", "prestigeType");
+
+                    currentVersion = 1;
+                }
+            };
+            this._openDBRequest.onsuccess = (e) => {
+                this._openDB = this._openDBRequest.result;
+                this._openDBRequest = null;
+
+                // All errors bubble up to here. This is like the one sane decision they made with IndexedDB.
+                this._openDB.onerror = this._handleError;
+                this._openDB.onabort = this._handleError;
+                // Try to handle onclose as best as we can, but this should never happen unless the user deletes site data, which sucks to be them I guess.
+                this._openDB.onclose = (e) => {
+                    this._handleError(e);
+                    this._openDB = null;
+                    console.warn("PrestigeDB is broken for the remainer of this session.");
+                };
+                // Try to commit the log from the previous session
+                this._tryCommitLog();
+            };
+        }
+
+        // Exists for debugging only. Can't cancel an in-flight open request.
+        static close() {
+            if (this._openDB) this._openDB.close();
+            this._openDB = null;
+            this._openDBRequest = null;
+        }
+
+        static wipeEverything(forReal) {
+            // It's a little easy to run this from the browser devtools by accident...
+            if (forReal === "For real.") {
+                if (this._openDB) this._openDB.close();
+                win.indexedDB.deleteDatabase("Evolve_UserScript_PrestigeDB");
+            }
+        }
+
+        static _tryCommitLog() {
+            let item = localStorage.getItem("Evolve_UserScript_PrestigeDBNext");
+            if (this._openDB && item) {
+                let entry = JSON.parse(item);
+                let transact = this._openDB.transaction("resets", "readwrite");
+                let store = transact.objectStore("resets");
+                // First, try to see if this reset # is already in the store.
+                // If so, update that one (user may have done restore backup).
+                let index = store.index("reset");
+                let request = index.getKey(entry.reset);
+                // If the key is not found then request.result will be some type of undefined.
+                // In Firefox it's not present on the object at all but the specification is useless so who knows what it's like elsehwere.
+                // Just assume undefined is non-present.
+                request.onsuccess = (e) => {
+                    if (request.result !== undefined) {
+                        store.put(entry, request.result);
+                    }
+                    else {
+                        store.add(entry);
+                    }
+                    transact.oncomplete = (e) => {
+                        // Should be safe to remove the localStorage item once committed.
+                        localStorage.removeItem("Evolve_UserScript_PrestigeDBNext");
+                    };
+                    // Try to commit early.
+                    transact.commit();
+                };
+            }
+        }
+
+        static createEntry(logString) {
+            // enabled check purposefully checks raw as overrides are not supported
+            if (!settingsRaw.prestigeDBenabled || !settings.prestigeDBlog) return;
+
+            let resetEntry = {
+                date: Date.now(),
+                reset: game.global.stats.reset,
+                days: game.global.stats.days,
+                prestigeType: settings.prestigeType,
+                alevel: game.alevel(),
+                species: game.global.race.species,
+                customSpeciesName: game.global.race.species === "custom" ? game.races.custom?.name : null,
+                universe: game.global.race.universe,
+                note: null,
+                graphExclude: false,
+                logString: logString,
+                stars: this._getCurrentStars(),
+                challenges: this._getCurrentChallenges(),
+                // These are for hooks to overwrite and fill in! But these are fallbacks.
+                milestones: {}, // key is some arbitrary milestone, value is day
+                rewards: {}, // key is reward name earned, value is amount
+                extra: {}, // place to store whatever your heart desires
+            };
+
+            // Let snippets hook into the entry
+            let hookResults = Object.values(this._entryHooks).map(fn => fn(resetEntry)).filter(v => typeof v === "object" && v !== null);
+            // Need to deep copy, luckily jQuery got us covered!
+            $.extend(true, resetEntry, ...hookResults);
+
+            // In case we don't make it in time or the DB is closed for some reason, set it in localStorage (this is synchronous).
+            localStorage.setItem("Evolve_UserScript_PrestigeDBNext", JSON.stringify(resetEntry));
+            // Try committing that, best-effort!
+            this._tryCommitLog();
+        }
+
+        // Entry hooks can return an object to extend the entry. They'll be called with the base entry as their first parameter.
+        static registerEntryHook(name, fn) {
+            if (typeof fn !== "function") throw `${fn} must be a function`;
+            this._entryHooks[name] = fn;
+        }
+        static unregisterEntryHook(name) {
+            delete this._entryHooks[name];
+        }
+
+        static _getCurrentStars() {
+            // from achieve.js:alevel()
+            const allStars = ['no_plasmid', 'no_trade', 'no_craft', 'no_crispr', 'weak_mastery', 'nerfed', 'badgenes'];
+            return allStars.filter(star => !!game.global.race[star]);
+        }
+
+        static _getCurrentChallenges() {
+            let stars = this._getCurrentStars();
+            return challenges.flat().map(a => a.trait).filter(chal => game.global.race[chal] && !stars.includes(chal));
+        }
+
+        // Get an array of all prestiges meeting the filter criteria.
+        // Not responsible for any kind of stat manipulation, etc, just raw data that meets the filters.
+        static getPrestiges(filterCfg) {
+            // These are all inclusive.
+            let filter = Object.assign({
+                minDate: -Infinity,
+                maxDate: Infinity,
+                prestigeType: null, // Pass a prestigeType to remove others
+                minReset: -Infinity,
+                maxReset: Infinity,
+                minDays: -Infinity,
+                maxDays: Infinity,
+                minAlevel: -Infinity,
+                maxAlevel: Infinity,
+                filterGraphExclude: false, // Pass true to filter graphExclude entries
+            }, filterCfg);
+            return new Promise((resolve, reject) => {
+                if (!this._openDB) { return reject("Database not opened"); }
+
+                let transaction = this._openDB.transaction(["resets"], "readonly");
+                let resetsStore = transaction.objectStore("resets");
+
+                let request;
+                if (filter.prestigeType) {
+                    let index = resetsStore.index("prestigeType");
+                    request = index.getAll(filter.prestigeType);
+                }
+                else {
+                    request = resetsStore.getAll();
+                }
+
+                request.onsuccess = () => {
+                    let unfiltered = request.result;
+                    let filtered = unfiltered.filter(entry => {
+                        if (entry.date < filter.minDate || entry.date > filter.maxDate) return false;
+                        if (filter.prestigeType && filter.prestigeType !== entry.prestigeType) return false;
+                        if (entry.reset < filter.minReset || entry.reset > filter.maxReset) return false;
+                        if (entry.days < filter.minDays || entry.days > filter.maxDays) return false;
+                        if (entry.alevel < filter.minAlevel || entry.alevel > filter.maxAlevel) return false;
+                        if (filter.filterGraphExclude && (!!entry.graphExclude)) return false;
+                        return true;
+                    });
+                    resolve(filtered);
+                };
+                request.onerror = (e) => {
+                    reject(e);
+                };
+            });
+        }
+
+        static async uiDownloadAll() {
+            return new Promise(async (resolve, reject) => {
+                if (!this.isAvailable()) { reject("Prestige DB is not enabled or the database is closed."); return; }
+                let entries = await this.getPrestiges({});
+                let json = JSON.stringify({ entries }, undefined, 2);
+                triggerFileDownload(json, "evolve-prestigedb.json");
+                resolve("Done.");
+            });
+        }
+
+        static async uiDownloadCSV(bannedColumns) {
+            return new Promise(async (resolve, reject) => {
+                if (!this.isAvailable()) { reject("Prestige DB is not enabled or the database is closed."); return; }
+                let entries = await this.getPrestiges({});
+
+                // CSV flattening action! We try to stick to RFC4180.
+                // Initialize set with a few columns that should always be near the start.
+                let columns = new Set(["reset", "date", "days", "prestigeType"]);
+
+                // Round 1: Flatten objects. Turns it into {"days": 234, "milestones_Womlings": 123} and the like.
+                // We also collect column names.
+                entries = entries.map(entry => {
+                    if (bannedColumns) bannedColumns.forEach(ban => {delete entry[ban]});
+                    return Object.fromEntries(Object.entries(entry).map(([k, v]) => {
+                        // These all need to be in an extra layer to survive flattening.
+                        if (typeof v === "object" && v !== null) {
+                            if (Array.isArray(v)) {
+                                columns.add(k);
+                                // Converted to a single string. String arrays get sorted, other arrays get preserved.
+                                return [[k, (v.length && typeof v[0] === "string") ? v.sort().join(",") : v.join(",")]];
+                            }
+                            else {
+                                // Don't add column for the object itself, only the keys inside.
+                                return Object.entries(v).map(([sk, sv]) => {
+                                    let fullKey = `${k}_${sk}`;
+                                    columns.add(fullKey);
+                                    return [fullKey, sv];
+                                });
+                            }
+                        }
+                        else {
+                            columns.add(k);
+                            return [[k, v]];
+                        }
+                    }).flat());
+                });
+
+                // Pass 2
+                const csvString = (v) => {
+                    if (v === null || v === undefined) return '""';
+                    if (typeof v === "number") return `"${v}"`;
+                    if (typeof v === "boolean") return v ? '"1"' : '"0"';
+                    if (typeof v === "string") return `"${v.replace(/"/g, '""')}"`;
+                    return '"UNKNOWN_VALUE"';
+                };
+                let columnsArr = Array.from(columns);
+
+                let csv = columnsArr.map(csvString).join(",") + "\r\n";
+                entries.forEach(entry => {
+                    csv += columnsArr.map(col => {
+                        return csvString(entry[col]);
+                    }).join(",") + "\r\n";
+                });
+
+                triggerFileDownload(csv, "evolve-prestige-entries.csv");
+                resolve("Done.");
+            });
+        }
+
+        static async uiGraphs() {
+            // We need the thing to be visible first so we can't use the builder function.
+            // Otherwise Chart.js doesn't like it.
+            // Annoying.
+            let modalBody;
+            openOptionsModal("WIP graph (no options yet)", (b) => { modalBody = b; });
+
+            modalBody.html("Waiting for data to load...");
+            let entries = await this.getPrestiges({
+                filterGraphExclude: true,
+            });
+
+            modalBody.html("");
+            let canvas = $(`<canvas id="script-prestigedb-canvas" style="width: 400px; height: 300px">`).appendTo(modalBody);
+
+            const pluckEm = (entries, property) => entries.map(e => getPathProperty(e, property));
+
+            // Returns an array of strings.
+            const renderEntryTooltip = (entry) => {
+                return [
+                    `Reset #${entry.reset}: ${entry.days} days, ${entry.alevel-1}* ${entry.prestigeType} [${entry.stars.join(', ')}]`,
+                    `Species: ${entry.species === 'custom' ? entry.customSpeciesName : entry.species}`,
+                    `${entry.logString??'More stuff goes here I guess'}`,
+                ];
+            };
+
+            // From "Zeileis, Hornik and Murrell (2009): Escaping RGBland: Selecting Colors for Statistical Graphics // Computational Statistics & Data Analysis Volume 53, Issue 9, 1 July 2009, Pages 3259-3270"
+            const allColors = ['#023FA5', '#7D87B9', '#BEC1D4', '#D6BCC0', '#BB7784', '#8E063B', '#4A6FE3', '#8595E1', '#B5BBE3', '#E6AFB9', '#E07B91', '#D33F6A', '#11C638', '#8DD593', '#C6DEC7', '#EAD3C6', '#F0B98D', '#EF9708', '#0FCFC0', '#9CDED6', '#D5EAE7', '#F3E1EB', '#F6C4E1', '#F79CD4'];
+            let curColor = 0;
+            const getColor = () => {
+                if (curColor > allColors.length) curColor = 0;
+                return allColors[curColor++];
+            };
+
+            const mkDataset = (property, label, extra) => {
+                return {
+                    label,
+                    data: pluckEm(entries, property),
+                    borderColor: getColor(),
+                    ...(extra ? extra : {}),
+                };
+            };
+
+            const datasets = [
+                mkDataset("days", "Days"),
+                mkDataset(["milestones", "Womlings"], "Womlings", { fill: false, showLine: false }),
+                mkDataset(["milestones", "TouristCenter"], "Tourism", { fill: "start" }),
+                mkDataset(["milestones", "tech-quantum_manufacturing"], "Quantum", { fill: "-1" }),
+                mkDataset(["milestones", "BlackholeStargateComplete"], "Stargate", { fill: "-1" }),
+                mkDataset(["milestones", "GorddonEmbassy"], "Embassy", { fill: "-1" }),
+                mkDataset(["milestones", "Alien2Foothold"], "Alien2", { fill: "-1" }),
+                mkDataset(["milestones", "ChthonianMission"], "Chthonian", { fill: "-1" }),
+            ];
+
+            // Pre-process the datasets to add fill colors where possible.
+            for (let i = 0; i < datasets.length; ++i) {
+                if (datasets[i].fill === '-1' && i > 0) {
+                    let newFill = {target: datasets[i].fill};
+                    if (datasets[i - 1]?.borderColor) { newFill.above = datasets[i - 1].borderColor; }
+                    datasets[i].fill = newFill;
+                }
+            }
+
+            // Fill days to the last milestone.
+            datasets[0].fill = { target: datasets.length - 1, above: datasets[datasets.length-1].borderColor };
+
+            //console.info("Datasets %o", datasets);
+
+            const config = {
+                type: "line",
+                data: {
+                    labels: pluckEm(entries, "reset"),
+                    datasets: datasets,
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Resets to Days'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: (ti) => {
+                                    let strs = [];
+                                    // This can in theory show multiple points in the same tooltip or something like that
+                                    for (let tooltip of ti) {
+                                        let entry = entries[tooltip.dataIndex];
+                                        strs.push(...renderEntryTooltip(entry));
+                                    }
+                                    return strs;
+                                }
+                            }
+                        }
+                    }
+                }
+
+            };
+
+            let chart = new Chart(canvas, config);
+            this._chart = chart; // for debugging only really, leaks
+        }
+
+        static async importDatabase(json) {
+            // Expected to get a plain object with .entries as array.
+            // Milestones are not yet touched, but may be in the future.
+            return new Promise((resolve, reject) => {
+                let transaction = this._openDB.transaction(["resets"], "readwrite");
+                transaction.onerror = (e) => {
+                    reject(e);
+                };
+                let store = transaction.objectStore("resets");
+                let clearRequest = store.clear();
+                clearRequest.onsuccess = (e) => {
+                    // Now that we're here, a complete will mean we're done.
+                    transaction.oncomplete = (final) => {
+                        resolve("Done.");
+                    };
+                    // Now batch import all the provided entries.
+                    for (let entry of json.entries) {
+                        store.add(entry);
+                    }
+                };
+            });
+        }
+
+        // Boilerplate function to make changes to the entire DB.
+        // This is never called within the script but is kept around in case it's needed in the future.
+        static async userUpdateAllEntriesByCallback(cb) {
+            /* Example:
+            cb = (entry) => {
+                if (!('universe' in entry)) {
+                    let newEntry = structuredClone(entry);
+                    newEntry.universe = 'magic';
+                    return [true, newEntry];
+                }
+                return [false, entry];
+            };
+            */
+            if (typeof cb !== "function") throw `You must specify a callback.`;
+
+            return new Promise(async (resolve, reject) => {
+                if (!this.isAvailable()) { reject("Prestige DB is not enabled or the database is closed."); return; }
+                const transaction = this._openDB.transaction(["resets"], "readwrite");
+                const errorHandler = (e) => {
+                    console.error("PrestigeDB userUpdateAllEntriesByCallback: %o", e);
+                    transaction.abort();
+                    reject(e);
+                };
+                transaction.onerror = errorHandler;
+                const store = transaction.objectStore("resets");
+
+                let updatedEntries = 0;
+                let processedEntries = 0;
+
+                const cursorRequest = store.openCursor();
+                cursorRequest.onerror = errorHandler;
+                cursorRequest.onsuccess = (e) => {
+                    const cursor = cursorRequest.result;
+                    if (!cursor) {
+                        let msg = `Done. Updated ${updatedEntries} entries out of ${processedEntries} total.`;
+                        console.info(msg);
+                        resolve(msg);
+                        return;
+                    }
+                    let entry = cursor.value;
+                    processedEntries++;
+                    if (processedEntries % 100 === 0) {
+                        console.info("Status: Processed %d entries.", processedEntries);
+                    }
+
+                    let [needsUpdate, newEntry] = cb(entry);
+
+                    if (needsUpdate && typeof newEntry === "object") {
+                        updatedEntries++;
+                        let updateReq = cursor.update(newEntry);
+                        // We don't really care for the onsuccess, only error.
+                        updateReq.onerror = errorHandler;
+                    }
+                    cursor.continue();
+                };
+            });
+        }
+
+        static isAvailable() {
+            return !!this._openDB;
+        }
     }
 
     var WindowManager = {
@@ -6122,10 +7765,11 @@
         _allFn: null,
         _eventProp: {Shift: "shiftKey", Control: "ctrlKey", Alt: "altKey", Meta: "metaKey"},
         _state: {x100: undefined, x25: undefined, x10: undefined},
+        _userState: {x100: false, x25: false, x10: false},
         _mode: "none",
 
-        init() {
-            let events = win.$._data(win.document).events;
+        init($game) {
+            let events = $game ? $game._data(win.document)?.events : null;
             let set = events?.keydown?.[0]?.handler ?? null;
             let unset = events?.keyup?.[0]?.handler ?? null;
             let all = events?.mousemove?.[0]?.handler ?? null;
@@ -6143,6 +7787,31 @@
                 this._unsetFn = unset;
                 this._allFn = all;
             }
+
+            // Try to preserve real user state as best as possible by listening for events ourselves.
+            // Our fake events will either not be seen at all (if jQuery) or will not set isTrusted due to being fake (if fallback mode).
+            ["keyup", "keydown"].forEach(etype => win.document.addEventListener(etype, (e) => {
+                if (e.isTrusted) {
+                    let keyCode = e.key || e.keyCode;
+                    let state = this._mapKeyToState(keyCode);
+                    if (state) this._userState[state] = e.type === "keydown" ? true : false;
+                }
+            }));
+            win.document.addEventListener("mousemove", (e) => {
+                if (e.isTrusted) {
+                    Object.entries(this._eventProp).forEach(([keyCode, eventKey]) => {
+                        let state = this._mapKeyToState(keyCode);
+                        if (state) this._userState[state] = e[eventKey];
+                    });
+                }
+            });
+        },
+
+        _mapKeyToState(key) {
+            for (let t of ["x100", "x25", "x10"]) {
+                if (key === game.global.settings.keyMap[t]) return t;
+            }
+            return null;
         },
 
         reset() {
@@ -6166,8 +7835,8 @@
         },
 
         finish() {
-            if (this._state.x100 || this._state.x25 || this._state.x10) {
-                this.set(false, false, false);
+            if (["all", "each"].includes(this._mode)) {
+                this.set(this._userState.x100, this._userState.x25, this._userState.x10);
             }
         },
 
@@ -6626,6 +8295,7 @@
         buildings.ProximaDysonSphere.overridePowered = -5;
         buildings.ProximaOrichalcumSphere.overridePowered = -8;
         buildings.ProximaElysaniteSphere.overridePowered = -18;
+        buildings.RuinsHellForge.overridePowered = 0;
         // Numbers aren't exactly correct. That's fine - it won't mess with calculations - it's not something we can turn off and on. We just need to know that they *are* power generators, for autobuild, and that's enough for us.
         // And it doesn't includes Stellar Engine at all. It can generate some power... But only when fully built, and you don't want to build 100 levels of engine just to generate 20MW.
     }
@@ -7144,6 +8814,7 @@
             foreignUnification: true,
             foreignForceSabotage: true,
             foreignOccupyLast: true,
+            foreignForceOccupy: false,
             foreignTrainSpy: true,
             foreignSpyMax: 2,
             foreignPowerRequired: 75,
@@ -7192,15 +8863,16 @@
             missionRequest: true,
             useDemanded: true,
             prioritizeTriggers: "savereq",
+            prioritizeSnippetTriggers: "savereq",
             prioritizeQueue: "savereq",
             prioritizeUnify: "savereq",
-            prioritizeOuterFleet: "ignore",
+            prioritizeOuterFleet: "savereq",
             buildingAlwaysClick: false,
             buildingClickPerTick: 50,
             activeTargetsUI: false,
             displayPrestigeTypeInTopBar: false,
             displayTotalDaysTypeInTopBar: false,
-            scriptSettingsExportFilename: "evolve-script-settings.json",
+            scriptSettingsExportFilename: `evolve-script-settings_${new Date().toISOString().split('T')[0]}.json`,
             performanceHackAvoidDrawTech: false,
         }
 
@@ -7537,12 +9209,16 @@
             buildingsIgnoreZeroRate: false,
             buildingsLimitPowered: true,
             buildingTowerSuppression: 100,
+            buildingBuildPassCount: 1,
             buildingConsumptionCheck: "perResource",
             buildingsTransportGem: false,
             buildingsBestFreighter: false,
             buildingsUseMultiClick: false,
             buildingEnabledAll: true,
-            buildingStateAll: true
+            buildingStateAll: true,
+            buildingSpecialAssembly: true,
+            buildingSpecialSwarmSat: true,
+            buildingSpecialSwarmSatMoneyCap: 100,
         }
 
         for (let i = 0; i < BuildingManager.priorityList.length; i++) {
@@ -7589,6 +9265,7 @@
         let def = {
             autoARPA: false,
             arpaScaleWeighting: true,
+            arpaDemandWhole: false,
             arpaStep: 5,
         }
 
@@ -7662,6 +9339,7 @@
             productionFoundryWeighting: "demanded",
             productionCraftsmen: "nocraft",
             productionSmelting: "required",
+            productionSmeltingMaxIronRatio: 0.2,
             productionSmeltingIridium: 0.5,
             productionFactoryWeighting: "none",
             productionFactoryMinIngredients: 0,
@@ -7738,10 +9416,21 @@
         // Add default triggers only on reset, or first run, but not on casual update
         if (reset || !settingsRaw.hasOwnProperty("autoTrigger")) {
             TriggerManager.priorityList = [];
-            TriggerManager.AddTrigger("BuildingCount", "space-moon_mission", 1, "build", "space-moon_base", 1);
-            TriggerManager.AddTrigger("BuildingCount", "space-moon_base", 1, "build", "space-iridium_mine", 1);
-            TriggerManager.AddTrigger("BuildingCount", "space-moon_base", 1, "build", "space-helium_mine", 1);
+            TriggerManager.AddTrigger("BuildingCount", "space-moon_mission", 1, "build", "space-moon_base", 1, true);
+            TriggerManager.AddTrigger("BuildingCount", "space-moon_base", 1, "build", "space-iridium_mine", 1, true);
+            TriggerManager.AddTrigger("BuildingCount", "space-moon_base", 1, "build", "space-helium_mine", 1, true);
             settingsRaw.triggers = JSON.parse(JSON.stringify(TriggerManager.priorityList));
+        }
+        // If not resetting, try to patch existing triggers up for addition of .enabled
+        if (!reset && settingsRaw.triggers?.length) {
+            for (let i = 0; i < settingsRaw.triggers.length; ++i) {
+                if (typeof settingsRaw.triggers[i].enabled !== "boolean") {
+                    settingsRaw.triggers[i].enabled = true;
+                }
+                if (settingsRaw.triggers[i].enabledOverrides?.length === 0) {
+                    delete settingsRaw.triggers[i].enabledOverrides;
+                }
+            }
         }
         applySettings(def, reset);
     }
@@ -7751,6 +9440,8 @@
             hellTurnOffLogMessages: true,
             logFilter: "",
             logEnabled: true,
+            prestigeDBenabled: false,
+            prestigeDBlog: true,
         }
         Object.keys(GameLog.Types).forEach(id => def["log_" + id] = true);
         def["log_mercenary"] = false;
@@ -7901,6 +9592,19 @@
         applySettings(def, reset);
     }
 
+    function resetSnippetSettings(reset) {
+        let def = {
+            autoSnippet: false,
+        };
+
+        // We never delete user snippets. Too easy to cause massive data loss. Only reset if it's invalid.
+        if (!settingsRaw.snippets || !Array.isArray(settingsRaw.snippets)) {
+            settingsRaw.snippets = [];
+        }
+
+        applySettings(def, reset);
+    }
+
     function updateStateFromSettings() {
         TriggerManager.priorityList = [];
         settingsRaw.triggers.forEach(trigger => TriggerManager.AddTriggerFromSetting(trigger));
@@ -7991,6 +9695,7 @@
         resetTriggerSettings(false);
         resetMinorTraitSettings(false);
         resetMutableTraitSettings(false);
+        resetSnippetSettings(false);
 
         // Validate overrides types, and fix if needed
         for (let key in settingsRaw.overrides) {
@@ -9837,22 +11542,45 @@
         // Just assume that smelters will always be fueled so Iron smelting is unlimited
         // We want to work out the maximum steel smelters that we can have based on our resource consumption
         let steelSmeltingConsumption = m.Productions.Steel.cost;
+        let steelConsumptionMissing = false;
+        const steelDemanded = resources.Steel.isDemanded();
         for (let productionCost of steelSmeltingConsumption) {
             let resource = productionCost.resource;
-            // Allow using all resources for Steel until 60s of consumption left, unless demanded.
-            if (resource.currentQuantity < ((smelterSteelCount * productionCost.quantity) * CONSUMPTION_BALANCE_MIN + productionCost.minRateOfChange) || resource.isDemanded()) {
-                let remainingRateOfChange = resource.rateOfChange + (smelterSteelCount * productionCost.quantity) - productionCost.minRateOfChange;
+            // Cap based on Iron/Coal if needed. It is needed when one of the following is true:
+            // * There is less than 60s of consumption in storage (low storage mode)
+            // * OR Iron/Coal is demanded, but Steel is not demanded
+            // When needed, we look at 5% of the total raw income or 100% of the remaining rate of change, whichever is higher.
+            // The 5% total income check solves two specific cases:
+            // * The user is spending all of their coal on Nano Tubes (many hundreds, not enough for our income to make a dent) and 120s balancing takes effect to demand more Coal
+            // * Building with high Iron or Coal cost is demanded
+            // It might flicker for Iron but oh well.
+            const costDemanded = resource.isDemanded();
+            const haveEnoughStorage = resource.currentQuantity >= ((smelterSteelCount * productionCost.quantity) * CONSUMPTION_BALANCE_MIN + productionCost.minRateOfChange)
+            if (!haveEnoughStorage || (!steelDemanded && costDemanded)) {
+                const allowedIncome = resource.income * 0.05;
+                const remainingRateOfChange = resource.rateOfChange + (smelterSteelCount * productionCost.quantity) - productionCost.minRateOfChange;
 
-                let affordableAmount = Math.max(0, Math.floor(remainingRateOfChange / productionCost.quantity));
+                let affordableAmount = Math.max(0, Math.floor(Math.max(remainingRateOfChange, allowedIncome) / productionCost.quantity));
                 if (affordableAmount < maxAllowedSteel) {
                     state.tooltips["smelterMatssteel"] = `Too low ${resource.name} income<br>`;
+                    steelConsumptionMissing = true;
+                    maxAllowedSteel = Math.min(maxAllowedSteel, affordableAmount);
                 }
-                maxAllowedSteel = Math.min(maxAllowedSteel, affordableAmount);
             }
+
+            // Set 120s of potential max consumption as demanded. Doing this in an auto function is not always safe due to order of operations,
+            // but it works out here.
+            let req = ((smelterSteelCount * productionCost.quantity) * CONSUMPTION_BALANCE_TARGET + productionCost.minRateOfChange);
+            resource.requestQuantity(req);
         }
 
+        // Users might make weird calculations in overrides, so be sure to clamp to 0-1 range
+        let maxIronRatio = Math.min(1, Math.max(settings.productionSmeltingMaxIronRatio, 0));
+
+        // Set initially wanted ratio
         let ironWeighting = 0;
         let steelWeighting = 0;
+        let allowDemand = true;
         switch (settings.productionSmelting){
             case "iron":
                 ironWeighting = resources.Iron.timeToFull;
@@ -9866,6 +11594,17 @@
                     ironWeighting = resources.Iron.timeToFull;
                 }
                 break;
+            case "configuredRatio":
+                allowDemand = false;
+                steelWeighting = resources.Steel.timeToFull;
+                if (!steelWeighting) {
+                    ironWeighting = resources.Iron.timeToFull;
+                }
+                else {
+                    ironWeighting = steelWeighting * maxIronRatio;
+                    steelWeighting *= 1 - maxIronRatio;
+                }
+                break;
             case "storage":
                 ironWeighting = resources.Iron.timeToFull;
                 steelWeighting = resources.Steel.timeToFull;
@@ -9876,31 +11615,66 @@
                 break;
         }
 
-        if (resources.Iron.isDemanded()) {
-            ironWeighting = Number.MAX_SAFE_INTEGER;
+        // If user isn't configuring ratio manually, make demanded override ratios, but Iron demand only goes to a certain %.
+        if (allowDemand) {
+            if (resources.Steel.isDemanded() && !steelConsumptionMissing) {
+                steelWeighting = Number.MAX_SAFE_INTEGER;
+            }
+            else if (resources.Iron.isDemanded()) {
+                ironWeighting = steelWeighting < 1 ? Number.MAX_SAFE_INTEGER : (steelWeighting * maxIronRatio);
+                steelWeighting *= 1 - maxIronRatio;
+            }
         }
-        if (resources.Steel.isDemanded()) {
-            steelWeighting = Number.MAX_SAFE_INTEGER;
-        }
+
+        // If no Iron sources, Iron smelters do nothing, turn them off.
         if (jobs.Miner.count === 0 && buildings.BeltIronShip.stateOnCount === 0) {
             ironWeighting = 0;
             steelWeighting = 1;
             maxAllowedSteel = totalSmelters - smelterIridiumCount;
         }
 
-        // We have more steel than we can afford OR iron income is too low
-        if (smelterSteelCount > maxAllowedSteel || smelterSteelCount > 0 && ironWeighting > steelWeighting) {
-            smeltAdjust.Steel--;
+        // If Iron or Steel (including Titanium if produced as byproduct) are full, turn them off.
+        let allowIronSmelting = resources.Iron.storageRatio < 0.99;
+        let allowSteelSmelting = (resources.Steel.storageRatio < 0.99) || (resources.Titanium.storageRatio < 0.99 && haveTech("titanium"));
+        if (!allowIronSmelting) {
+            ironWeighting = 0;
+        }
+        if (!allowSteelSmelting) {
+            steelWeighting = 0;
+            // Pivot to Iron again if Steel is full but Iron is not, just unweighted
+            if (allowIronSmelting && !ironWeighting) {
+                ironWeighting = 1;
+            }
         }
 
-        // We can afford more steel AND either steel income is too low OR both steel and iron full, but we can use steel smelters to increase titanium income
-        if (smelterSteelCount < maxAllowedSteel && smelterIronCount > 0 &&
-             ((steelWeighting > ironWeighting) ||
-              (steelWeighting <= 0 && ironWeighting <= 0 && resources.Titanium.storageRatio < 0.99 && haveTech("titanium")))) {
-            smeltAdjust.Steel++;
+        // Steel and Iridium share a part of maxAllowedSteel.
+        let totalWeighting = ironWeighting + steelWeighting;
+        let smeltersToSplit = totalSmelters - smelterIridiumCount;
+        let realSteelRatio = totalWeighting > 0 ? (steelWeighting / totalWeighting) : 1;
+
+        let newWantedSteelCount = 0;
+
+        if (allowIronSmelting && allowSteelSmelting) {
+            // Split using calculated ratio
+            newWantedSteelCount = Math.ceil(realSteelRatio * smeltersToSplit);
+        }
+        else if (allowSteelSmelting) {
+            // All steel
+            newWantedSteelCount = smeltersToSplit;
         }
 
-        smeltAdjust.Iron = totalSmelters - (smelterIronCount + smelterSteelCount + smeltAdjust.Steel + smelterIridiumCount + smeltAdjust.Iridium);
+        // But what if we can't produce this much Steel? Then cap
+        if (newWantedSteelCount > maxAllowedSteel) {
+            newWantedSteelCount = maxAllowedSteel;
+        }
+
+        // Compute iron smelters as rest of remaining share
+        let newWantedIronCount = allowIronSmelting ? Math.max(0, smeltersToSplit - newWantedSteelCount) : 0;
+
+        // Compare to actual smelters.
+        smeltAdjust.Iron = newWantedIronCount - smelterIronCount;
+        smeltAdjust.Steel = newWantedSteelCount - smelterSteelCount;
+
         Object.entries(smeltAdjust).forEach(([id, delta]) => delta < 0 && m.decreaseSmelting(id, delta * -1));
         Object.entries(smeltAdjust).forEach(([id, delta]) => delta > 0 && m.increaseSmelting(id, delta));
     }
@@ -9946,11 +11720,11 @@
         }
 
         const scalingFactor = 
-            settings.productionFactoryWeighting === "buildings" && state.unlockedBuildings.length > 0 
-                ? (resource) => (findRequiredResourceWeight(resource) ?? 100) :
-            settings.productionFactoryWeighting === "demanded" && onDemand 
-                ? (resource) => (resource.currentQuantity < resource.storageRequired ? 1 : 0) :
-            () => 1;
+        settings.productionFactoryWeighting === "buildings" && state.unlockedBuildings.length > 0 
+            ? (resource) => (findRequiredResourceWeight(resource) ?? 100) :
+        settings.productionFactoryWeighting === "demanded" && onDemand 
+            ? (resource) => (resource.currentQuantity < resource.storageRequired ? 1 : 0) :
+        () => 1;
         const scaledWeights = Object.fromEntries(allProducts.map(production => [production.resource.id, production.weighting * scalingFactor(production.resource)]));
 
         // Calculate amount of factories per product
@@ -10402,7 +12176,9 @@
         placeholders.timeStamp = game.global.stats.days;
         placeholders.species = game.global.race.species.charAt(0).toUpperCase() + game.global.race.species.slice(1);
 
-        GameLog.logInfo("prestige", formatLogString(settings.log_prestige_format, placeholders), ['achievements']);
+        const logString = formatLogString(settings.log_prestige_format, placeholders);
+        GameLog.logInfo("prestige", logString, ['achievements']);
+        PrestigeDBManager.createEntry(logString);
     }
 
     function autoPrestige() {
@@ -11035,11 +12811,12 @@
         }
     }
 
-    function autoBuild() {
+    function autoBuild(noIgnore) {
+        let buildCount = 0;
         BuildingManager.updateWeighting();
         ProjectManager.updateWeighting();
 
-        let ignoredList = [...state.queuedTargets, ...state.triggerTargets];
+        let ignoredList = noIgnore ? [] : [...state.queuedTargets, ...state.allTriggerlikeTargets];
         let buildingList = [...BuildingManager.managedPriorityList(), ...ProjectManager.managedPriorityList()];
 
         // Sort array so we'll have prioritized buildings on top. We'll need that below to avoid deathlocks, when building 1 waits for building 2, and building 2 waits for building 3. That's something we don't want to happen when building 1 and building 3 doesn't conflicts with each other.
@@ -11165,9 +12942,10 @@
 
             // Build building
             if (building.click()) {
+                buildCount++;
                 // Same for gems when we're saving them, and missions as they tends to unlock new stuff
                 if (building.isMission() || (building.cost["Soul_Gem"] && settings.prestigeType === "whitehole" && settings.prestigeWhiteholeSaveGems)) {
-                    return;
+                    return buildCount;
                 }
                 // Only one building with consumption per tick, so we won't build few red buildings having just 1 extra support, and such
                 // Buildings that add support (negative rate) don't count
@@ -11182,6 +12960,82 @@
                 }
             }
         }
+        return buildCount;
+    }
+
+    function autoBuildSpecial() {
+        // "Special" builders with non-standard logic go here. Special builders disregard weightings and ignore trigger resources on purpose.
+        // Each has its own setting, and will also respect each buildings autoBuild toggle.
+
+        // Script forces NaNs in max quantity to be MAX_SAFE_INTEGER.
+        // NaNs everywhere else can manifest as NaN or Infinity, isFinite checks both.
+        // We need to double-check data from the game to avoid infinite/very long loops, as there can be bugs causing brief ticks of invalid data.
+        const isRealisticNumber = (num) => Number.isFinite(num) && num <= (Number.MAX_SAFE_INTEGER - 1);
+
+        // Special multi-build for population assembly buildings
+        const autoBuildSpecialPopulation = () => {
+            if (settings.buildingSpecialAssembly && game.global.race['artifical'] && resources.Population.storageRatio < 1) {
+                if (!isRealisticNumber(resources.Population.currentQuantity) || !isRealisticNumber(resources.Population.maxQuantity)) {
+                    return;
+                }
+
+                let building = haveTech("focus_cure", 7) ? buildings.TauCloning : assemblyBuildings.find(b => b.isUnlocked());
+                if (building && building.autoBuildEnabled) {
+                    // Limit to building 100 population per tick. Arbitrary number but there should be no situations where this matters.
+                    let targetCount = Math.min(resources.Population.maxQuantity, building.autoMax, resources.Population.currentQuantity + 100);
+
+                    // Never multi-build in Fasting or Gravity Well to reduce Meditator/Teamster fluctuation impact
+                    if (game.global.race['fasting'] || game.global.race['gravity_well']) {
+                        targetCount = Math.min(resources.Population.currentQuantity + 1, targetCount);
+                    }
+
+                    if (!isRealisticNumber(targetCount)) return;
+
+                    for (let i = resources.Population.currentQuantity; i < targetCount; ++i) {
+                        if (!building.click(true)) break;
+                        building.updateResourceRequirements();
+                    }
+                }
+            }
+        };
+
+        // Special multi-build for swarm sats
+        const autoBuildSpecialSwarmSat = () => {
+            if (settings.buildingSpecialSwarmSat && buildings.SunSwarmSatellite.isUnlocked() && buildings.SunSwarmSatellite.autoBuildEnabled) {
+                let building = buildings.SunSwarmSatellite;
+                let maxCost = settings.buildingSpecialSwarmSatMoneyCap;
+
+                // Some overbuilding is good in case of sudden quantum drop, but too much overbuilding can cause lag (eg in micro when able to build 20k+ of them).
+                // To avoid lag and excess spending, limit overbuilding to 1000 above support and only do it when free.
+                if (buildings.SunSwarmSatellite.count >= resources.Sun_Support.maxQuantity) {
+                    maxCost = 0;
+                }
+                let maxCount = (maxCost > 0 ? 0 : 1000) + (resources.Sun_Support.maxQuantity - building.count);
+
+                if (!isRealisticNumber(maxCount)) {
+                    return;
+                }
+
+                // The game's cost calculation logic isn't optimized for very high numbers and can get really slow.
+                // Limit building to 1000 per tick by default, but to avoid the browser considering the tab frozen,
+                // limit to 100/tick once we get into micro-only territory.
+                maxCount = Math.min(buildings.SunSwarmSatellite.count >= 10000 ? 100 : 1000, maxCount);
+
+                for (let i = 0; i < maxCount; ++i) {
+                    if ((building.cost.Money ?? 0) > maxCost || !building.click(true)) {
+                        break;
+                    }
+                    building.updateResourceRequirements();
+                }
+
+                if (building.boughtThisTick && !logIgnore.includes(building.id)) {
+                    GameLog.logSuccess("multi_construction", poly.loc('build_success', [`${building.title} (${building.boughtThisTick})`]), ['queue', 'building_queue']);
+                }
+            }
+        };
+
+        autoBuildSpecialPopulation();
+        autoBuildSpecialSwarmSat();
     }
 
     function getTechConflict(tech) {
@@ -11346,6 +13200,9 @@
 
         let manageTransport = buildings.LakeTransport.isSmartManaged() && buildings.LakeBireme.isSmartManaged();
         let manageSpire = buildings.SpirePort.isSmartManaged() && buildings.SpireBaseCamp.isSmartManaged();
+        // Mining pit has seperate smart behavior so only check Colony for this.
+        // Materials phase is active at tauceti 1-3, ended by building both jump gate sides and having the game grant tauceti 4
+        let manageTauCetiMaterials = buildings.TauColony.isSmartManaged() && game.global.tech.tauceti && game.global.tech.tauceti <= 4;
 
         // Start assigning buildings from the top of our priority list to the bottom
         for (let i = 0; i < buildingList.length; i++) {
@@ -11384,6 +13241,10 @@
             }
             // Lake transport managed separately
             if (manageTransport && (building === buildings.LakeTransport || building === buildings.LakeBireme)) {
+                continue;
+            }
+            // Tau Ceti materials managed separately
+            if (manageTauCetiMaterials && (building === buildings.TauColony || building === buildings.TauMiningPit)) {
                 continue;
             }
             if (building.is.smart && building.autoStateSmart) {
@@ -11459,9 +13320,11 @@
                         //let protectedSoldiers = (game.global.race['armored'] ? 1 : 0) + (game.global.race['scales'] ? 1 : 0) + (game.global.tech['armor'] ?? 0);
                         //let woundCap = Math.ceil((game.global.space.fob.enemy + (game.global.tech.outer >= 4 ? 75 : 62.5)) / 5) - protectedSoldiers;
                         //let maxLanders = getHealingRate() < woundCap ? Math.floor((getHealingRate() + protectedSoldiers) / 1.5) : Number.MAX_SAFE_INTEGER;
+                        let reservedSoldiers = settings.autoFleet ? FleetManagerOuter.nextShipDesiredCrew : 0;
+                        let reservedMaxSquads = Math.floor((WarManager.maxSoldiers - reservedSoldiers) / (3 * traitVal('high_pop', 0, 1)));
                         let dispatchSoldiers = WarManager.currentSoldiers - Math.max(0, WarManager.wounded - Math.floor(getHealingRate()));
-                        let healthySquads = Math.floor(dispatchSoldiers / (3 * traitVal('high_pop', 0, 1)));
-                        maxStateOn = Math.min(maxStateOn, healthySquads /*, maxLanders*/ );
+                        let healthySquads = Math.floor(Math.max(0, dispatchSoldiers) / (3 * traitVal('high_pop', 0, 1)));
+                        maxStateOn = Math.min(maxStateOn, reservedMaxSquads, healthySquads /*, maxLanders*/ );
                     }
                 }
                 // Do not enable Ascension Machine while we're waiting for pillar
@@ -11676,6 +13539,7 @@
                 let resourceType = building.consumption[j];
                 // If resource rate is negative then we are gaining resources. So, only check if we are consuming resources
                 if (resourceType.rate > 0) {
+                    const adjustedRate = building.getFuelRate(j);
                     if (!resourceType.resource.isUnlocked()) {
                         maxStateOn = 0;
                         break;
@@ -11696,7 +13560,7 @@
                         if (resourceType.resource.storageRatio > 0.05 || isHungryRace()) {
                             continue;
                         }
-                    } else if (!(resourceType.resource instanceof Support) && resourceType.resource.currentQuantity >= (maxStateOn * CONSUMPTION_BALANCE_MIN * resourceType.rate)) {
+                    } else if (!(resourceType.resource instanceof Support) && resourceType.resource.currentQuantity >= (maxStateOn * CONSUMPTION_BALANCE_MIN * adjustedRate)) {
                         // If we have more than 60 seconds of max consumption worth then its ok to lose some resources.
                         // This check is mainly so that power producing buildings don't turn off when rate of change goes negative.
                         // That can cause massive loss of life if turning off space habitats :-)
@@ -11706,7 +13570,7 @@
                         continue;
                     }
 
-                    let supportedAmount = resourceType.resource.rateOfChange / resourceType.rate;
+                    let supportedAmount = resourceType.resource.rateOfChange / adjustedRate;
                     if (resourceType.resource === resources.Womlings_Support) {
                         // Womlings facilities can run understaffed
                         supportedAmount = Math.ceil(supportedAmount);
@@ -11820,6 +13684,55 @@
                     break;
                 }
             }
+        }
+
+        // Manages the Tau Ceti materials phase by force-enabling minimum number of mining pits needed to build next item.
+        // Required amount may change as buildings are built so this needs to run every tick while in materials phase.
+        if (manageTauCetiMaterials && resources.Tau_Support.maxQuantity > 0) {
+            const miningPitAmount = 1e6;
+            const tauSupport = resources.Tau_Support.maxQuantity;
+            let colony = buildings.TauColony, orbital = buildings.TauOrbitalStation, pit = buildings.TauMiningPit;
+            let nextColonyPitRequirement = Math.ceil((colony.cost?.Materials ?? -Infinity) / miningPitAmount);
+            let nextOrbitalPitRequirement = Math.ceil((orbital.cost?.Materials ?? -Infinity) / miningPitAmount);
+            let nextMiningPitPitRequirement = Math.ceil((pit.cost?.Materials ?? -Infinity) / miningPitAmount);
+            // We must target the maximum amount because of limitations in autoBuild weighting rules
+            // Non operating buildings check really messes things up
+            let minimumPits = Math.max(nextColonyPitRequirement, nextOrbitalPitRequirement, nextMiningPitPitRequirement);
+            // Bad math/never turn off all pits/need more pits than available for all options (all red)/can't support required number of pits
+            if (!isFinite(minimumPits) || minimumPits <= 0 || minimumPits > pit.count || minimumPits > tauSupport) {
+                minimumPits = 1;
+            }
+
+            let newPitCount = minimumPits;
+            let newColonyCount = 0;
+            let availableSupport = tauSupport - newPitCount;
+            // May cause an infinite loop if Infinity or NaN, avoid. Should never happen but there may be some edge cases with the game.
+            if (!isFinite(availableSupport)) {
+                throw "Avoiding infinite loop in manageTauCetiMaterials";
+            }
+            while (availableSupport > 0) {
+                // As long as we have 2 pits to turn on, we calculate for the +2 case instead, because 1 colony uses 2 support.
+                // Otherwise, we calculate for the +1 case. Will be fine even if we have 2 pits but only 1 support since adding the colony will fail.
+                let availablePits = Math.min(pit.count - newPitCount, 2);
+                let nextPitPower = (newPitCount + availablePits) * (1 + (newColonyCount * 0.5));
+                let nextColonyPower = newPitCount * (1 + ((newColonyCount + 1) * 0.5));
+                if (availableSupport >= 2 && (newColonyCount + 1) <= colony.count && (nextColonyPower > nextPitPower || !availablePits)) {
+                    availableSupport -= 2;
+                    newColonyCount++;
+                }
+                else if ((newPitCount + 1) <= pit.count) {
+                    availableSupport--;
+                    newPitCount++;
+                }
+                else {
+                    // Avoid infinite loop if more support than buildings
+                    break;
+                }
+            }
+
+            console.info("manageTauCetiMaterials: Setting to: %d colonies, %d pits", newColonyCount, newPitCount);
+            colony.tryAdjustState(newColonyCount - colony.stateOnCount);
+            pit.tryAdjustState(newPitCount - pit.stateOnCount);
         }
 
         resources.Power.currentQuantity = availablePower;
@@ -11992,6 +13905,10 @@
         addList(BuildingManager.priorityList.filter(p => p.isUnlocked() && p.autoBuildEnabled));
         if (settings.storageAssignPart) {
             addList([{cost: resRequired, isList: true}]);
+        }
+        if (settings.autoSnippet) {
+            addList(SnippetManager.activeTriggers);
+            addList(SnippetManager.customResourceDemands);
         }
 
         let storageToBuild = 0;
@@ -12332,6 +14249,12 @@
 
     function autoFleetOuter() {
         let m = FleetManagerOuter;
+        m.nextShipDesiredCrew = 0; // Should always be set to 0 unless eval result is short on crew
+
+        // To let users make ship adjustments via script
+        let previousTargetRegion = m.nextShipRegion;
+        m.nextShipRegion = null; // Should always be set to null if region not yet selected
+
         if (!m.initFleet()) {
             m.nextShipMsg = `No ships needed yet`;
             m.updateNextShip();
@@ -12362,12 +14285,21 @@
             minCrew = 0;
         } else {
             let scanEris = game.global.tech['eris'] === 1 && m.getWeighting("spc_eris") > 0 && m.syndicate("spc_eris", true, true).s < 50;
+            let scout = m.getScoutBlueprint();
+            // Assume scout class and sensor don't change but everything else is OK to change.
+            // TODO: Ideally this would all be based off region intel %.
+            let scoutToFind = {"class": scout["class"], "sensor": scout["sensor"], "power": null, "weapon": null, "armor": null, "engine": null};
             if (scanEris) {
                 targetRegion = "spc_eris";
                 minCrew = 0;
             } else {
-                let regionsToProtect = m.Regions.filter(reg => m.isUnlocked(reg) && m.getWeighting(reg) > 0 && m.syndicate(reg, false, true) < m.getMaxDefense(reg))
-                    .sort((a, b) => ((1 - m.syndicate(b, false, true)) * m.getWeighting(b))
+                let regionsToProtect = m.Regions.filter(reg => {
+                    if (!m.isUnlocked(reg) || m.getWeighting(reg) <= 0) return false;
+
+                    let needScout = m.shipCount(reg, scoutToFind) < m.getMaxScouts(reg);
+                    let needDefense = m.syndicate(reg, false, true) < m.getMaxDefense(reg);
+                    return needScout || needDefense;
+                }).sort((a, b) => ((1 - m.syndicate(b, false, true)) * m.getWeighting(b))
                                   - ((1 - m.syndicate(a, false, true)) * m.getWeighting(a)));
 
                 if (regionsToProtect.length < 1) {
@@ -12382,15 +14314,22 @@
                 newShip = m.avail(yard.blueprint) ? yard.blueprint : null;
             }
             else {
-                let scout = m.getScoutBlueprint();
-                if (m.avail(scout) && m.shipCount(targetRegion, scout) < m.getMaxScouts(targetRegion)) {
+                if (m.avail(scout) && m.shipCount(targetRegion, scoutToFind) < m.getMaxScouts(targetRegion)) {
                     newShip = scout;
                 }
-                if (!newShip) {
+                if (!newShip && m.syndicate(targetRegion, false, true) < m.getMaxDefense(targetRegion)) {
                     let fighter =  m.getFighterBlueprint();
                     newShip = m.avail(fighter) ? fighter : null;
                 }
             }
+        }
+
+        // If we get here, set it as target region.
+        m.nextShipRegion = targetRegion;
+        // If we changed region, we need to wait 1 tick now.
+        if (previousTargetRegion !== targetRegion) {
+            m.nextShipMsg = `Waiting to dispatch to ${m.getLocName(targetRegion)}`;
+            return;
         }
 
         if (!newShip) {
@@ -12410,11 +14349,16 @@
 
         if (WarManager.currentCityGarrison - m.ClassCrew[newShip.class] < minCrew) {
             m.nextShipMsg = `Next ship(${m.nextShipName}) is missing crew`;
+            // This must ONLY be set here, and only needs to be set if the crew left-over isn't enough.
+            // We don't want to take crew from FOB landers until the very moment it's needed.
+            // It's set to 0 earlier in this function, so in all other cases it will be set to 0.
+            m.nextShipDesiredCrew = m.ClassCrew[newShip.class];
             return;
         }
 
         if (m.build(newShip, targetRegion)) {
             GameLog.logSuccess("outer_fleet", `${m.getShipName(newShip)} has been assembled, and dispatched to ${m.getLocName(targetRegion)}.`, ['combat']);
+            m.nextShipRegion = null; // Wait a tick between ship dispatches
         } else {
             m.nextShipMsg = `Invalid design! Next ship(${m.nextShipName}) is missing power`;
             return;
@@ -12948,6 +14892,11 @@
         if (settings.prioritizeTriggers.includes("req")) {
             prioritizedTasks.push(...state.triggerTargets);
         }
+        // Active triggers and demands
+        if (settings.prioritizeSnippetTriggers.includes("req") && settings.autoSnippet) {
+            prioritizedTasks.push(...SnippetManager.activeTriggers);
+            prioritizedTasks.push(...SnippetManager.customResourceDemands);
+        }
         // Unlocked missions
         if (settings.missionRequest) {
             for (let i = state.missionBuildingList.length - 1; i >= 0; i--) {
@@ -12968,13 +14917,10 @@
         if (prioritizedTasks.length > 0) {
             for (let i = 0; i < prioritizedTasks.length; i++){
                 let demandedObject = prioritizedTasks[i];
-                for (let res in demandedObject.cost) {
+                let demandCost = (settings.arpaDemandWhole && demandedObject.fullRemainingCost) ? demandedObject.fullRemainingCost : demandedObject.cost;
+                for (let res in demandCost) {
                     let resource = resources[res];
-                    let quantity = demandedObject.cost[res];
-                    // Double request for project, to make it smoother
-                    if (demandedObject instanceof Project && demandedObject.progress < 99) {
-                        quantity *= 2;
-                    }
+                    let quantity = demandCost[res];
                     resource.requestQuantity(quantity);
                 }
             }
@@ -13057,7 +15003,7 @@
                         if (obj.isAffordable(true)) {
                             state.queuedTargets.push(obj);
                             if (queueSave) {
-                                state.conflictTargets.push({name: obj.title, cause: "Queue", cost: obj.cost});
+                                state.conflictTargets.push({name: obj.title, cause: "Queue", cost: settings.arpaDemandWhole && obj.fullRemainingCost ? obj.fullRemainingCost : obj.cost});
                             }
                         }
                     }
@@ -13087,9 +15033,19 @@
                 if (obj) {
                     state.triggerTargets.push(obj);
                     if (triggerSave) {
-                        state.conflictTargets.push({name: obj.title, cause: "Trigger", cost: obj.cost});
+                        state.conflictTargets.push({name: obj.title, cause: "Trigger", cost: settings.arpaDemandWhole && obj.fullRemainingCost ? obj.fullRemainingCost : obj.cost});
                     }
                 }
+            }
+        }
+
+        if (settings.autoSnippet) {
+            // This is kind of interwoven with real triggers, so we re-use the same setting
+            let triggerSave = settings.prioritizeSnippetTriggers.includes("save");
+            if (triggerSave) {
+                state.conflictTargets.push(...SnippetManager.activeTriggers.map(trg => {
+                    return {name: "Snippet", cause: "Snippet", cost: trg.cost};
+                }), ...SnippetManager.customResourceDemands);
             }
         }
 
@@ -13212,6 +15168,8 @@
           + (game.global.tech.replicator ? 1 : 0) // Matter Replicator unlocked
           + (game.global.tauceti.tau_factory?.count > 0 ? 1 : 0) // Factory built in lone survivor
           + (game.global.space.g_factory?.count > 0 ? 1 : 0) // Graphene plant built in lone survivor
+          + ((game.global.tech?.plague??0) >= 5 ? 1 : 0) // Belt mining -> plague 5 given -> access to Outer Tau Survey tech in lone survivor
+          + (game.global.tech.alien_data >= 6 ? 1 : 0) // Alien Space Station decrypted (only required in lone survivor)
           + (game.global.tauceti.mining_ship?.count > 0 ? 1 : 0) // Extractor ship built
           + (game.global.tech.psychicthrall ?? 0) // Psychic powers
           + (game.global.tech.psychic ?? 0) // Psychic powers
@@ -13481,7 +15439,8 @@
             const triggersList = state.triggerTargets,
                 buildingsList = [],
                 researchList = [],
-                arpaList = [];
+                arpaList = [],
+                snippetsList = settings.autoSnippet ? [...SnippetManager.activeTriggers, ...SnippetManager.customResourceDemands] : [];
 
             queuedTargets.forEach(target => {
                 if (target instanceof Technology) {
@@ -13497,6 +15456,7 @@
             updateActiveTargetsUI(buildingsList, 'buildings');
             updateActiveTargetsUI(researchList, 'research');
             updateActiveTargetsUI(arpaList, 'arpa');
+            updateActiveTargetsUI(snippetsList, 'snippets');
 
             // remove from queue by clicking 
             $(".active-target-remove-x").click(function() {
@@ -13679,7 +15639,7 @@
             }
         }
 
-        if ((obj instanceof Technology || (!settings.autoARPA && obj._tab === "arpa") || (!settings.autoBuild && obj._tab !== "arpa")) && !state.queuedTargetsAll.includes(obj) && !state.triggerTargets.includes(obj)) {
+        if ((obj instanceof Technology || (!settings.autoARPA && obj._tab === "arpa") || (!settings.autoBuild && obj._tab !== "arpa")) && !state.queuedTargetsAll.includes(obj) && !state.allTriggerlikeTargets.includes(obj)) {
             let conflict = getCostConflict(obj);
             if (conflict) {
                 notes.push(`Conflicts with ${conflict.actionList.map(action => {return `<span class="has-text-info">${action}</span>`;}).join(', ')} for ${conflict.resList.map(res => {return `<span class="has-text-info">${res}</span>`;}).join(', ')} (${conflict.obj.cause})`);
@@ -13689,7 +15649,7 @@
         if (obj instanceof Technology) {
             if (state.queuedTargetsAll.includes(obj)) {
                 notes.push("Queued research, processing...");
-            } else if (state.triggerTargets.includes(obj)) {
+            } else if (state.allTriggerlikeTargets.includes(obj)) {
                 notes.push("Active trigger, processing...");
             } else {
                 let conflict = getTechConflict(obj);
@@ -13849,48 +15809,65 @@
         }
     }
 
+    // We need to know the difference between returning null/undefined (possible bug in user eval, should warn) vs just returning nothing.
+    // This symbol is a specific placeholder value we return when none of the override conditions were met.
+    // The calling function should check against this and use its default behavior if returned.
+    const OVERRIDE_NO_VALUE = Symbol("evaluateOverride returned nothing");
+    function evaluateOverride(override, displayName, expectedType) {
+        let xorList = [];
+        for (let i = 0; i < override.length; i++) {
+            let check = override[i];
+            try {
+                if (!checkTypes[check.type1]) {
+                    throw `${check.type1} variable not found`;
+                }
+                if (!checkTypes[check.type2]) {
+                    throw `${check.type2} variable not found`;
+                }
+                if (!checkCompare[check.cmp]) {
+                    throw `${checkCompare[check.cmp]} comparator not found`;
+                }
+                let var1 = checkTypes[check.type1].fn(check.arg1);
+                let var2 = checkTypes[check.type2].fn(check.arg2);
+                if (!checkCompare[check.cmp](var1, var2)) {
+                    continue;
+                }
+                let ret = checkCustom[check.cmp] ? var2 : check.ret;
+
+                if (expectedType === "object") {
+                    xorList.push(ret);
+                } else if (expectedType === typeof ret) {
+                    return ret;
+                } else {
+                    throw `Expected type: ${expectedType}; Override type: ${typeof ret}`;
+                }
+            } catch (error) {
+                let msg = `Condition ${i + 1} for setting ${displayName} invalid! Fix or remove it. (${error})`;
+                if (!WindowManager.isOpen() && !Object.values(game.global.lastMsg.all).find(log => log.m === msg)) { // Don't spam with errors
+                    GameLog.logDanger("special", msg, ['events', 'major_events']);
+                }
+                continue; // Some argument not valid, skip condition
+            }
+        }
+        return (expectedType === "object" && xorList.length) ? xorList : OVERRIDE_NO_VALUE;
+    }
+
     function updateOverrides() {
         let xorLists = {};
         let overrides = {};
         for (let key in settingsRaw.overrides) {
-            let conditions = settingsRaw.overrides[key];
-            for (let i = 0; i < conditions.length; i++) {
-                let check = conditions[i];
-                try {
-                    if (!checkTypes[check.type1]) {
-                        throw `${check.type1} variable not found`;
-                    }
-                    if (!checkTypes[check.type2]) {
-                        throw `${check.type2} variable not found`;
-                    }
-                    if (!checkCompare[check.cmp]) {
-                        throw `${checkCompare[check.cmp]} comparator not found`;
-                    }
-                    let var1 = checkTypes[check.type1].fn(check.arg1);
-                    let var2 = checkTypes[check.type2].fn(check.arg2);
-                    if (!checkCompare[check.cmp](var1, var2)) {
-                        continue;
-                    }
-                    let ret = checkCustom[check.cmp] ? var2 : check.ret;
+            let result = evaluateOverride(settingsRaw.overrides[key], key, typeof settingsRaw[key]);
 
-                    if (typeof settingsRaw[key] === typeof ret) {
-                        // Override single value
-                        overrides[key] = ret;
-                        break;
-                    } else if (typeof settingsRaw[key] === "object") {
-                        // Xor lists
-                        xorLists[key] = xorLists[key] ?? [];
-                        xorLists[key].push(ret);
-                    } else {
-                        throw `Expected type: ${typeof settingsRaw[key]}; Override type: ${typeof ret}`;
-                    }
-                } catch (error) {
-                    let msg = `Condition ${i+1} for setting ${key} invalid! Fix or remove it. (${error})`;
-                    if (!WindowManager.isOpen() && !Object.values(game.global.lastMsg.all).find(log => log.m === msg)) { // Don't spam with errors
-                        GameLog.logDanger("special", msg, ['events', 'major_events']);
-                    }
-                    continue; // Some argument not valid, skip condition
-                }
+            if(result === OVERRIDE_NO_VALUE) {
+                // Didn't return anything - keep using default value
+            }
+            else if (typeof settingsRaw[key] !== "object") {
+                // Override single value
+                overrides[key] = result;
+            }
+            else {
+                // Xor lists
+                xorLists[key] = result;
             }
         }
 
@@ -13919,11 +15896,6 @@
                     settings[key].push(item);
                 }
             }
-        }
-
-        let currentNode = $(`#script_override_true_value:visible`);
-        if (currentNode.length !== 0) {
-            changeDisplayInputNode(currentNode);
         }
     }
 
@@ -13955,6 +15927,10 @@
 
         updateScriptData(); // Sync exposed data with script variables
         updateOverrides();  // Apply settings overrides as soon as possible
+        // Let user change overrides in very early snippets, needs to run before we make use of them
+        if (settings.masterScriptToggle && settings.autoSnippet) {
+            SnippetManager?.updateOverridesAndUi();
+        }
         finalizeScriptData(); // Second part of updating data, applying settings
 
         // Redraw tabs once they unlocked
@@ -13970,6 +15946,12 @@
         // The user has turned off the master toggle. Stop taking any actions on behalf of the player.
         // We've still updated the UI etc. above; just not performing any actions.
         if (!settings.masterScriptToggle) { return; }
+
+        // Let user change overrides in very early snippets
+        if (settings.autoSnippet) {
+            SnippetManager.runSnippets();
+            SnippetManager.clickTriggers();
+        }
 
         if (state.goal === "Evolution") {
             if (settings.autoEvolution) {
@@ -14028,6 +16010,7 @@
             }
             if (settings.autoBuild || settings.autoARPA) {
                 autoBuild(); // Called after autoStorage to compensate fluctuations of quantum(caused by previous tick's adjustments) levels before weightings
+                autoBuildSpecial();
             }
         }
         if (settings.autoFactory) {
@@ -14093,8 +16076,78 @@
             autoMutateTrait();
         }
 
+        // Extra autoBuild passes. As the default is 1, these will usually not run, and the feature is marked as dangerous, so users can expect some breakage.
+        // This is very dangerous; we need to update data from the game *and* let the user's overrides update again (eg so that disabling a building's autobuild if building count >= 2 works).
+        // But we only care about the autoBuild toggle & building/project toggles/max/weighting. No other overrides will be used.
+        // Hopefully, users only set things covered by updated debug data & building/project updates.
+        // It would be neat to only update those overrides, but that opens up a whole different set of problems.
+        // Also, there is no need to do this if we're resetting or in evolution.
+        if (state.goal === "Standard") {
+            for (let i = 1; i < settings.buildingBuildPassCount; ++i) {
+                updateDebugData();
+                // Need to update Support resources, mostly, as we don't always track changes to those.
+                for (let id in resources) {
+                    resources[id].updateData();
+                }
+                BuildingManager.updateBuildings();
+                ProjectManager.updateProjects();
+
+                updateOverrides();
+                SnippetManager.updateOverridesAndUi();
+
+                if (!settings.autoBuild) break;
+
+                // Need to update conflictTargets so we don't conflict with a just-built trigger.
+                updatePriorityTargets();
+
+                // Try to run autoBuild until it returns 0 buildings built.
+                // We ignore the trigger/queue ignore list, because.
+                let built = autoBuild(true);
+                if (built === 0) break;
+            }
+        }
+
         KeyManager.finish();
         state.soulGemLast = resources.Soul_Gem.currentQuantity;
+    }
+
+    // The game has its own copy of jQuery, we need our own copy of jQuery in case we run in the sandbox,
+    // no way to make it conditional due to userscript limitations, and other scripts may also have their own ones.
+    // We really want to find the game's keyup/keydown/mousemove event handler so we can use it for reliable multiplier key faking;
+    // using dispatchEvent is not nearly as reliable and is known to silently fail in some scenarios.
+    // Getting those handlers involves poking into jQuery internals.
+    // We try to remove our copy of jQuery from the global $ stack ASAP to make sure it doesn't leak, but that might not always work,
+    // and sometimes other scripts also have their own jQuery.
+    // So what we do here is we noConflict() potentially the *whole chain of jQuery $ instances* looking for the one where the game put the
+    // key handling events, and then try to put that one back (or whatever was there before if we fail).
+    // At the time this function is ran, the game will certainly have loaded, so it should be in there somewhere.
+    // This should, hopefully, be safe in most cases as we pull and push the reference from unsafeWindow if required.
+    // And thankfully, noConflict is idempotent, so this doesn't change the overall page state in any way.
+    // TLDR: hacking into jquery internals isn't easy if you have to juggle multiple jqueries
+    function findGameJquery() {
+        let $window = win.$;
+        let $game = null;
+        // Just in case there is somehow an infinite loop of jQuery instances...
+        const maximum = 16;
+        let i = 0;
+
+        while (win.$ && ++i < maximum) {
+            const eventTable = win.$._data(win.document).events;
+            const isGame = eventTable?.['mousemove'] && eventTable?.['keydown'] && eventTable?.['keyup'];
+            if (isGame) {
+                $game = win.$;
+                break;
+            }
+            else {
+                win.$.noConflict();
+            }
+        }
+
+        // The global $ is the only one that will properly respond to `$().off()` calls.
+        // Arguably, it might be better to put the game's $ here, but the game never calls `$().off()`, so leaving it unchanged
+        // is the most safe option.
+        win.$ = $window;
+        return $game;
     }
 
     function mainAutoEvolveScript() {
@@ -14110,11 +16163,6 @@
             win = unsafeWindow;
         } else {
             win = window;
-            // Chrome overrides original JQuery with one required by script, we need to restore it to get $._data with events handlers
-            // I'd get rid of this JQuery copy altogether, that's a right way to do it. No duplicate - no conflicts... But that breaks that damn FF.
-            if (!win.$._data(win.document).events?.['keydown']) {
-                $.noConflict();
-            }
         }
         game = win.evolve;
 
@@ -14177,14 +16225,22 @@
             poly.messageQueue = game.messageQueue;
             poly.shipCosts = game.shipCosts;
         }
+        else {
+            console.info("Warning: Script is running in UserScript sandbox. This results in lower performance and potential bugs.");
+            console.info("Your UserScript extension may have settings to disable this.");
+        }
 
         addErrorHandler();
         addScriptStyle();
-        KeyManager.init();
+        KeyManager.init(findGameJquery());
         initialiseState();
         initialiseRaces();
         initialiseScript();
         updateOverrides();
+        SnippetManager.prepSnippets();
+
+        // Purposefully checks raw as prestigeDBenabled doesn't support overrides.
+        if (settingsRaw.prestigeDBenabled) { PrestigeDBManager.init(); }
 
         // Hook to game loop, to allow script run at full speed in unfocused tab
         const setCallback = (fn) => !needSandboxBypass ? fn : exportFunction(fn, unsafeWindow);
@@ -14210,6 +16266,8 @@
         state.forcedUpdate = true;
         game.updateDebugData();
         state.forcedUpdate = false;
+        // Needs to stay in sync with debug data updates.
+        Object.values(buildings).forEach(b => b.boughtThisTick = 0);
     }
 
     function addScriptStyle() {
@@ -14223,7 +16281,7 @@
             gruvboxLight: {background: "#fbf1c7", alt: "#f9f5d7", hover: "#e8e4c6", border: "#3c3836", primary: "#3c3836", hasTextWarning: '#b57614'},
             gruvboxDark: {background: "#282828", alt: "#1d2021", hover: "#0c0f10", border: "#3c3836", primary: "#ebdbb2", hasTextWarning: '#fabd2f'},
             orangeSoda: {background: "#131516", alt: "#292929", hover: "#181818", border: "#313638", primary: "#EBDBB2", hasTextWarning: '#F06543'},
-            dracula: {background: "#282a36", alt: "#1d2021", hover: "#C0F10", border: "#44475a", primary: "#f8f8f2", hasTextWarning: '#f1fa8c'},
+            dracula: {background: "#282a36", alt: "#1d2021", hover: "#0c0f10", border: "#44475a", primary: "#f8f8f2", hasTextWarning: '#f1fa8c'},
         };
         let styles = "";
         // Colors for different themes
@@ -14317,6 +16375,10 @@
                 width: 100%;
                 margin-top: 20px;
                 margin-bottom: 10px;
+            }
+
+            #script_triggerContent table td {
+                padding: 8px 6px;
             }
 
             /* Open script options button */
@@ -14543,15 +16605,31 @@
                 line-height: 1rem;
             }
 
+            .active-target-remove-x.snippets {
+                display: none;
+            }
+
             .active-target-remove-x:hover {
                 opacity: 1;
                 font-size: 1.2rem;
+            }
+
+            /* Game and Monaco use some conflicting class names, need to work around the conflicts. */
+            #script-monaco-modal-editor .monaco-editor .main {
+                margin: 0 !important;
+            }
+            /* Monaco: Quick Fix popup, conflicts with buefy .title, should be from Monaco .action-widget */
+            #script-monaco-modal-editor .monaco-editor .title {
+                font-size: inherit !important; /* 13px */
+                color: var(--vscode-quickInputList-focusForeground) !important;
+                line-height: 24px !important;
+                font-weight: initial !important;
+                margin-bottom: 0 !important;
             }
         `;
 
         // Create style document
         var css = document.createElement('style');
-        css.type = 'text/css';
         css.appendChild(document.createTextNode(styles));
 
         // Append style to html head
@@ -14563,8 +16641,15 @@
     function checkIgnoredError(e) {
         if (typeof e !== "string") e = String(e);
         let ignoreRegexes = [
-            // Currently no known game errors. Example regex:
+            // List only known game errors here, try to include some kind of reference. Ideally this list is always empty.
+            // Example regex:
             // /.*ReferenceError.*defineGovernor.*/,
+
+            // Unknown game error with stacktrace not coming from the game.
+            // TODO: Find and submit fix for exact source of error
+            // Presumably a vBind for a city/action combo that doesn't exist?
+            // https://discord.com/channels/586926974585274373/605191634300174337/1280174770369069190
+            /.*TypeError.*'on'/,
         ];
 
         if (ignoreRegexes.find(regex => regex.test(e))) {
@@ -14673,6 +16758,7 @@
         buildBuildingSettings();
         buildWeightingSettings();
         buildProjectSettings();
+        buildSnippetSettings();
         buildLoggingSettings(scriptContentNode, "");
 
         let collapsibles = document.querySelectorAll("#script_settings .script-collapsible");
@@ -15081,14 +17167,116 @@
             openOptionsModal(event.data.label, function(modal) {
                 modal.append(`<div style="margin-top: 10px; margin-bottom: 10px;" id="script_${event.data.name}Modal"></div>`);
                 $('.script-modal-content').addClass('override-modal');
-                buildOverrideSettings(event.data.name, event.data.type, event.data.options);
+                buildOverrideSettings(event.data.name, event.data.type, event.data.options, event.data.handler);
             });
         }
     }
 
-    function buildOverrideSettings(settingName, type, options) {
-        const rebuild = () => buildOverrideSettings(settingName, type, options);
-        let overrides = settingsRaw.overrides[settingName] ?? [];
+    // Default implementation, used for simple setting names, takes from settings/settingsRaw/settingsRaw.overrides.
+    function getOverrideModalSettingNameHandler(settingName) {
+        return {
+            // Get the current value (with overrides applied).
+            getCurrent() {
+                return settings[settingName];
+            },
+            // Get the raw value.
+            getRaw() {
+                return settingsRaw[settingName];
+            },
+            // Set the raw value.
+            setRaw(newValue) {
+                settingsRaw[settingName] = newValue;
+            },
+            // Get an array to write in. NOTE: Should be returned by reference!
+            getOverrides(peek) {
+                if (peek) {
+                    return settingsRaw.overrides[settingName];
+                }
+                else {
+                    settingsRaw.overrides[settingName] ??= [];
+                    return settingsRaw.overrides[settingName];
+               }
+            },
+            // Called when dialog is closed and this thing is no longer needed.
+            closed() {
+                // Can't always guarantee this is called (eg F5 on window). Too bad.
+                if (settingsRaw.overrides[settingName]?.length === 0) {
+                    delete settingsRaw.overrides[settingName];
+                }
+            },
+        };
+    }
+
+    // Fancier, takes from settingsRaw, an user-given path name in settingsRaw for the raw setting and user-given path name for the override.
+    // Optionally in a different object altogether.
+    // Could be used similar to the above by calling with ("exampleSetting", "overrides.exampleSetting", settingsRaw).
+    function getOverrideModalPathHandler(settingPathName, overridePathName, settingsRawObj) {
+        if (!settingsRawObj) settingsRawObj = settingsRaw;
+        return {
+            // Get the current value (with overrides applied).
+            getCurrent() {
+                let base = getPathProperty(settingsRawObj, settingPathName);
+                let overrides = getPathProperty(settingsRawObj, overridePathName);
+                if (overrides) {
+                    let overrideValue = evaluateOverride(overrides, typeof settingPathName === "string" ? settingPathName : settingPathName.join(pathSplitKey), typeof base);
+                    if (overrideValue !== OVERRIDE_NO_VALUE) {
+                        return overrideValue;
+                    }
+                }
+                return base;
+            },
+            // Get the raw value.
+            getRaw() {
+                return getPathProperty(settingsRawObj, settingPathName);
+            },
+            // Set the raw value.
+            setRaw(newValue) {
+                setPathProperty(settingsRawObj, settingPathName, newValue);
+            },
+            // Get an array to write in. NOTE: Should be returned by reference!
+            getOverrides(peek) {
+                let overrides = getPathProperty(settingsRawObj, overridePathName);
+                if (!overrides && !peek) {
+                    overrides = [];
+                    setPathProperty(settingsRawObj, overridePathName, overrides);
+                }
+                return overrides;
+            },
+            // Called when dialog is closed and this thing is no longer needed.
+            closed() {
+                let overrides = getPathProperty(settingsRawObj, overridePathName);
+                if (overrides?.length === 0) {
+                    deletePathProperty(settingsRawObj, overridePathName);
+                }
+            },
+        };
+    }
+
+    function buildOverrideSettings(settingName, type, options, handler) {
+        // Handler is only specified for some specific things not storing the override in the main location.
+        // Others can have a placeholder setting name and a custom handler.
+        if (!handler) {
+            handler = getOverrideModalSettingNameHandler(settingName);
+        }
+
+        const rebuild = () => { clearInterval(checkTimeout); checkTimeout = null; buildOverrideSettings(settingName, type, options, handler); }
+        let overrides = handler.getOverrides();
+
+        // Updates current value.
+        let checkTimeout = setInterval(() => {
+            if ($("#scriptModal").css('display') === 'none') {
+                handler.closed();
+                clearInterval(checkTimeout);
+                checkTimeout = null;
+            }
+            else {
+                // Not always possible to get this from the right place, need to poll.
+                let currentNode = $(`#script_override_true_value:visible`);
+                if (currentNode.length !== 0) {
+                    changeDisplayInputNode(currentNode, handler.getCurrent());
+                }
+            }
+        }, 100);
 
         let currentNode = $(`#script_${settingName}Modal`);
         currentNode.empty().off("*");
@@ -15118,7 +17306,7 @@
             newTableBodyText += `<tr id="script_${settingName}_o${i}" value="${i}" class="script-draggable"><td style="width:16%"></td><td style="width:16%"></td><td style="width:10%"></td><td style="width:16%"></td><td style="width:16%"></td><td style="width:14%"></td><td style="width:12%"><span class="script-lastcolumn"></span></td></tr>`;
         }
 
-        let listField = typeof settingsRaw[settingName] === "object";
+        let listField = typeof handler.getRaw() === "object";
         let note = listField ?
           "All values passed checks will be added or removed from list":
           "First value passed check will be used. Default value:";
@@ -15146,23 +17334,22 @@
         // Default input
         if (!listField) {
             $(`#script_${settingName}_d td:eq(1)`)
-              .append(buildInputNode(type, options, settingsRaw[settingName], function(result) {
-                  settingsRaw[settingName] = result;
+              .append(buildInputNode(type, options, handler.getRaw(), function(result) {
+                  handler.setRaw(result);
                   updateSettingsFromState();
 
                   let retType = typeof result === "boolean" ? "checked" : "value";
-                  $(".script_" + settingName).prop(retType, settingsRaw[settingName]);
+                  $(".script_" + settingName).prop(retType, handler.getRaw());
               }));
         }
-        $(`#script_override_true_value td:eq(1)`).append(buildInputNodeForDisplay(type, options, settings[settingName]));
+        $(`#script_override_true_value td:eq(1)`).append(buildInputNodeForDisplay(type, options, handler.getCurrent()));
 
         // Add button
         $(`#script_${settingName}_d a`).on('click', function() {
-            if (!settingsRaw.overrides[settingName]) {
-                settingsRaw.overrides[settingName] = [];
+            if (overrides.length === 0) {
                 $(".script_bg_" + settingName).addClass("inactive-row");
             }
-            settingsRaw.overrides[settingName].push({type1: "Boolean", arg1: true, type2: "Boolean", arg2: false, cmp: "==", ret: settingsRaw[settingName]})
+            overrides.push({type1: "Boolean", arg1: true, type2: "Boolean", arg2: false, cmp: "==", ret: handler.getRaw()})
             updateSettingsFromState();
             rebuild();
         });
@@ -15185,9 +17372,9 @@
                 tableElement.append(buildConditionRet(override, type, options));
             }
             tableElement = tableElement.next();
-            tableElement.append(buildConditionRemove(settingName, i, rebuild));
-            tableElement.append(buildConditionDuplicate(settingName, i, rebuild));
-            tableElement.append(buildConditionEvalize(settingName, i, rebuild));
+            tableElement.append(buildConditionRemove(settingName, i, rebuild, overrides));
+            tableElement.append(buildConditionDuplicate(settingName, i, rebuild, overrides));
+            tableElement.append(buildConditionEvalize(settingName, i, rebuild, overrides));
 
         }
 
@@ -15196,7 +17383,10 @@
             helper: sorterHelper,
             update: function() {
                 let newOrder = tableBodyNode.sortable('toArray', {attribute: 'value'});
-                settingsRaw.overrides[settingName] = newOrder.map((i) => settingsRaw.overrides[settingName][i]);
+                let newOverridesContents = newOrder.map((i) => overrides[i]);
+                // Need to maintain same references so this is a little ugly...
+                overrides.splice(0);
+                overrides.push(...newOverridesContents);
 
                 updateSettingsFromState();
                 rebuild();
@@ -15283,10 +17473,9 @@
         }
     }
 
-    function changeDisplayInputNode(currentNode) {
+    function changeDisplayInputNode(currentNode, value) {
         let type = currentNode.attr("type");
         let id = currentNode.attr("value");
-        let value = settings[currentNode.attr("value")];
         let node = currentNode.find(`td:eq(1)>*:first-child`);
         switch (type) {
             case "string":
@@ -15335,12 +17524,11 @@
         });
     }
 
-    function buildConditionRemove(settingName, id, rebuild) {
+    function buildConditionRemove(settingName, id, rebuild, overrides) {
         return $(`<a class="button is-small" style="width: 26px; height: 26px"><span>-</span></a>`)
         .on('click', function() {
-            settingsRaw.overrides[settingName].splice(id, 1);
-            if (settingsRaw.overrides[settingName].length === 0) {
-                delete settingsRaw.overrides[settingName];
+            overrides.splice(id, 1);
+            if (overrides.length === 0) {
                 $(".script_bg_" + settingName).removeClass("inactive-row");
             }
             updateSettingsFromState();
@@ -15348,19 +17536,19 @@
         });
     }
 
-    function buildConditionDuplicate(settingName, id, rebuild) {
+    function buildConditionDuplicate(settingName, id, rebuild, overrides) {
         return $(`<a class="button is-small" style="width: 26px; height: 26px"><span style="font-size: 1.2rem;">&#9282;</span></a>`)
         .on('click', function() {
-            settingsRaw.overrides[settingName].splice(id, 0, {...settingsRaw.overrides[settingName][id]});
+            overrides.splice(id, 0, {...overrides[id]});
             updateSettingsFromState();
             rebuild();
         });
     }
 
-    function buildConditionEvalize(settingName, id, rebuild) {
+    function buildConditionEvalize(settingName, id, rebuild, overrides) {
         return $(`<a class="button is-small" style="width: 26px; height: 26px"><span style="font-size: 0.9rem;">E</span></a>`)
         .on('click', function() {
-            let override = settingsRaw.overrides[settingName][id];
+            let override = overrides[id];
             let check = checkCompare[override.cmp].toString().substr(10)
                 .replace(/([ab])/g, (s, v) => {
                     let idx = v === "a" ? 1 : 2;
@@ -15633,25 +17821,40 @@
             .append(addInputCallbacks($(`<input class="script_${settingKey}" type="text" class="input is-small" style="height: 25px; width:100%" value="${settingsRaw[settingKey]}"/>`), settingKey));
     }
 
-    function addToggleCallbacks(node, settingKey) {
+    function addToggleCallbacks(node, settingKey, extra) {
         return node
         .on('change', 'input', function() {
-            settingsRaw[settingKey] = this.checked;
+            if (extra && extra.handler) {
+                extra.handler.setRaw(this.checked);
+            }
+            else {
+                settingsRaw[settingKey] = this.checked;
+            }
             updateSettingsFromState();
 
-            $(".script_" + settingKey).prop('checked', settingsRaw[settingKey]);
+            $(".script_" + settingKey).prop('checked', this.checked);
         })
-        .on('click', {label: `Toggle (${settingKey})`, name: settingKey, type: "boolean"}, openOverrideModal);
+        .on('click', Object.assign({label: `Toggle (${settingKey})`, name: settingKey, type: "boolean"}, extra || {}), openOverrideModal);
     }
 
-    function addTableToggle(node, settingKey) {
-        node.addClass("script_bg_" + settingKey + (settingsRaw.overrides[settingKey] ? " inactive-row" : ""))
+    // rawValue/overrides/extra exist for the purpose of overriding toggles in snippets and triggers.
+    function addTableToggle(node, settingKey, handler) {
+        let rawValue, overrides;
+        if (typeof handler === "undefined") {
+            rawValue = settingsRaw[settingKey];
+            overrides = settingsRaw.overrides[settingKey];
+        } else {
+            rawValue = handler.getRaw();
+            overrides = handler.getOverrides(true);
+        }
+
+        node.addClass("script_bg_" + settingKey + (overrides ? " inactive-row" : ""))
             .append(addToggleCallbacks($(`
           <label tabindex="0" class="switch" style="position:absolute; margin-top: 8px; margin-left: 10px;">
-            <input class="script_${settingKey}" type="checkbox"${settingsRaw[settingKey] ? " checked" : ""}>
+            <input class="script_${settingKey}" type="checkbox"${rawValue ? " checked" : ""}>
             <span class="check" style="height:5px; max-width:15px"></span>
             <span style="margin-left: 20px;"></span>
-          </label>`), settingKey));
+          </label>`), settingKey, handler ? {handler} : undefined));
     }
 
     function buildTableLabel(note, title = "", color = "has-text-info") {
@@ -15702,7 +17905,8 @@
         addSettingsToggle(currentNode, "missionRequest", "Prioritize resources for missions", "Readjust trade routes and production to resources required for unlocked and affordable missions. Missing resources will have 100 priority where applicable(autoMarket, autoGalaxyMarket, autoFactory, autoMiningDroid), or just 'top priority' where not(autoTax, autoCraft, autoCraftsmen, autoQuarry, autoMine, autoExtractor, autoSmelter).");
 
         addSettingsSelect(currentNode, "prioritizeQueue", "Queue", "Alter script behaviour to speed up queued items, prioritizing missing resources.", priority);
-        addSettingsSelect(currentNode, "prioritizeTriggers", "Triggers", "Alter script behaviour to speed up triggers, prioritizing missing resources.", priority);
+        addSettingsSelect(currentNode, "prioritizeTriggers", "Triggers", "Alter script behaviour to speed up normal triggers, prioritizing missing resources.", priority);
+        addSettingsSelect(currentNode, "prioritizeSnippetTriggers", "Snippet Triggers", "Alter script behaviour to speed up snippet-caused triggers, prioritizing missing resources.", priority);
         addSettingsSelect(currentNode, "prioritizeUnify", "Unification", "Alter script behaviour to speed up unification, prioritizing money required to purchase foreign cities.", priority);
         addSettingsSelect(currentNode, "prioritizeOuterFleet", "Ship Yard Blueprint (The True Path)", "Alter script behaviour to assist fleet building, prioritizing resources required for current design of ship.", priority);
 
@@ -16213,11 +18417,12 @@
             </tr>
             <tr>
               <th class="has-text-warning" style="width:16%">Type</th>
-              <th class="has-text-warning" style="width:18%">Value</th>
-              <th class="has-text-warning" style="width:11%" title="Numerical variables compared to this value using '>=', boolean variables - using '=='. String variables not currently supported by triggers.">Result</th>
+              <th class="has-text-warning" style="width:18%">Id</th>
+              <th class="has-text-warning" style="width:8%" title="Numerical variables compared to this value using '>=', boolean variables - using '=='. String variables not currently supported by triggers.">#</th>
               <th class="has-text-warning" style="width:16%">Type</th>
               <th class="has-text-warning" style="width:18%">Id</th>
-              <th class="has-text-warning" style="width:11%">Count</th>
+              <th class="has-text-warning" style="width:8%">#</th>
+              <th style="width:6%"></th>
               <th style="width:5%"></th>
               <th style="width:5%"></th>
             </tr>
@@ -16229,7 +18434,7 @@
 
         for (let i = 0; i < TriggerManager.priorityList.length; i++) {
             const trigger = TriggerManager.priorityList[i];
-            newTableBodyText += `<tr id="script_trigger_${trigger.seq}" value="${trigger.seq}" class="script-draggable"><td style="width:16%"></td><td style="width:18%"></td><td style="width:11%"></td><td style="width:16%"></td><td style="width:18%"></td><td style="width:11%"></td><td style="width:5%"></td><td style="width:5%"><span class="script-lastcolumn"></span></td></tr>`;
+            newTableBodyText += `<tr id="script_trigger_${trigger.seq}" value="${trigger.seq}" class="script-draggable"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td><span class="script-lastcolumn"></span></td></tr>`;
         }
         tableBodyNode.append($(newTableBodyText));
 
@@ -16244,6 +18449,7 @@
             buildTriggerActionId(trigger);
             buildTriggerActionCount(trigger);
 
+            buildTriggerToggleColumn(trigger);
             buildTriggerSettingsColumn(trigger);
         }
 
@@ -16258,6 +18464,7 @@
 
                 TriggerManager.sortByPriority();
                 updateSettingsFromState();
+                updateTriggerSettingsContent();
             },
         });
 
@@ -16265,13 +18472,13 @@
     }
 
     function addTriggerSetting() {
-        let trigger = TriggerManager.AddTrigger("ResearchUnlocked", "tech-club", 1, "research", "tech-club", 0);
+        let trigger = TriggerManager.AddTrigger("ResearchUnlocked", "tech-club", 1, "research", "tech-club", 0, true);
         updateSettingsFromState();
 
         let tableBodyNode = $('#script_triggerTableBody');
         let newTableBodyText = "";
 
-        newTableBodyText += `<tr id="script_trigger_${trigger.seq}" value="${trigger.seq}" class="script-draggable"><td style="width:16%"></td><td style="width:18%"></td><td style="width:11%"></td><td style="width:16%"></td><td style="width:18%"></td><td style="width:11%"></td><td style="width:5%"></td><td style="width:5%"><span class="script-lastcolumn"></span></td></tr>`;
+        newTableBodyText += `<tr id="script_trigger_${trigger.seq}" value="${trigger.seq}" class="script-draggable"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td><span class="script-lastcolumn"></span></td></tr>`;
 
         tableBodyNode.append($(newTableBodyText));
 
@@ -16283,6 +18490,7 @@
         buildTriggerActionId(trigger);
         buildTriggerActionCount(trigger);
 
+        buildTriggerToggleColumn(trigger);
         buildTriggerSettingsColumn(trigger);
     }
 
@@ -16403,8 +18611,19 @@
         }
     }
 
-    function buildTriggerSettingsColumn(trigger) {
+    function buildTriggerToggleColumn(trigger) {
         let triggerElement = $('#script_trigger_' + trigger.seq).children().eq(6);
+        triggerElement.empty().off("*");
+
+        // The priorityList is always sorted by .priority.
+        let handler = getOverrideModalPathHandler(`priorityList---${trigger.priority}---enabled`, `priorityList---${trigger.priority}---enabledOverrides`, TriggerManager);
+        addTableToggle(triggerElement, `priorityList---${trigger.priority}---enabled`, handler);
+
+        triggerElement.find("label").css("margin-left", "0");
+    }
+
+    function buildTriggerSettingsColumn(trigger) {
+        let triggerElement = $('#script_trigger_' + trigger.seq).children().eq(7);
         triggerElement.empty().off("*");
 
         let deleteTriggerButton = $('<a class="button is-dark is-small" style="width: 26px; height: 26px"><span>X</span></a>');
@@ -16437,6 +18656,10 @@
                         <div class="target-type-box arpa" style="display: none;">
                             <h2>A.R.P.A.</h2>
                             <ul class="active_targets-list arpa"></ul>
+                        </div>
+                        <div class="target-type-box snippets" style="display: none;">
+                            <h2>Snippets</h2>
+                            <ul class="active_targets-list snippets"></ul>
                         </div>
                     </div>
                 </div>`);
@@ -16529,6 +18752,7 @@
         addSettingsToggle(currentNode, "foreignOccupyLast", "Occupy last foreign power", "Occupy last foreign power once other two are controlled, and unification is researched to speed up unification. Disable if you want annex\\purchase achievements.");
         addSettingsToggle(currentNode, "foreignForceSabotage", "Sabotage foreign power when useful", "Perform sabotage against current target if it's useful(power above 50), regardless of required power, and default action defined above");
         addSettingsToggle(currentNode, "foreignTrainSpy", "Train spies", "Train spies to use against foreign powers");
+        addSettingsToggle(currentNode, "foreignForceOccupy", "Force occupation before unification researched", "Initiate Purchase/Annex/Occupy actions before Unification is available, be careful about setting up Purchase too soon as it may prevent your game progress. Use with overrides.");
         addSettingsNumber(currentNode, "foreignSpyMax", "Maximum spies", "Maximum spies per foreign power");
 
         addSettingsNumber(currentNode, "foreignPowerRequired", "Military Power to switch target", "Switches to attack next foreign power once its power lowered down to this number. When exact numbers not know script tries to approximate it.");
@@ -17638,10 +19862,12 @@
         addStandardHeading(currentNode, "Smelter");
 
         let smelterOptions = [{val: "iron", label: "Prioritize Iron", hint: "Produce only Iron, untill storage capped, and switch to Steel after that"},
-                              {val: "steel", label: "Prioritize Steel", hint: "Produce as much Steel as possible, untill storage capped, and switch to Iron after that"},
+                              {val: "steel", label: "Prioritize Steel", hint: "Produce as much Steel as possible, unless Iron is demanded but Steel is not, in which case up to 'Maximum Iron ratio' is dedicated to Iron"},
+                              {val: "configuredRatio", label: "Configured Iron Ratio", hint: "Manage Steel / Iron ratio manually using 'Maximum Iron ratio'"},
                               {val: "storage", label: "Up to full storages", hint: "Produce both Iron and Steel at ratio which will fill both storages at same time for both"},
                               {val: "required", label: "Up to required amounts", hint: "Produce both Iron and Steel at ratio which will produce maximum amount of resources required for buildings at same time for both"}];
         addSettingsSelect(currentNode, "productionSmelting", "Smelters production", "Distribution of smelters between iron and steel", smelterOptions);
+        addSettingsNumber(currentNode, "productionSmeltingMaxIronRatio", "Maximum Iron ratio", "When using 'Configured Iron Ratio' mode: Share of smelters dedicated to Iron regardless of settings or demand, unless resource full. When using other mode: Maximum allowed share while Iron is demanded.");
         addSettingsNumber(currentNode, "productionSmeltingIridium", "Iridium ratio", "Share of smelters dedicated to Iridium");
 
         currentNode.append(`
@@ -18158,6 +20384,8 @@
         ];
         addSettingsSelect(currentNode, "buildingConsumptionCheck", "Behavior when building support/upkeep-using building", "By default, the script only buys one building with support or upkeep requirement per tick, to allow automatic weightings to work optimally.", consumptionOptions);
 
+        addSettingsNumber(currentNode, "buildingBuildPassCount", "(Dangerous) Number of times to run autoBuild each tick", "Attempts to run autoBuild this many times. Numbers lower than 1 will have no effect; disable autoBuild instead. At high prestige levels, this may increase the speed of building. Expect potential bugs as this will evaluate overrides under different conditions than normal. High numbers may help build up the MAD phase very quickly, but after that, it is recommended to put this as low as possible.");
+
         currentNode.append(`
           <div><input id="script_buildingSearch" class="script-searchsettings" type="text" placeholder="Search for buildings..."></div>
           <table style="width:100%">
@@ -18247,6 +20475,11 @@
                 updateSettingsFromState();
             },
         });
+
+        addSettingsHeader2(currentNode, "Smart Multi-build Construction");
+        addSettingsToggle(currentNode, "buildingSpecialAssembly", "Smart population assembly", "For population assembly: Disables the default autoBuild weighting system, allows multi-build and treats assembly as absolute priority. Build limit and build toggle will still be respected. Multi-build disabled in Gravity Well and Fasting, but will still ignore weighting.");
+        addSettingsToggle(currentNode, "buildingSpecialSwarmSat", "Smart Swarm Satellite construction", "For Swarm Satellites: While below the money cap, disables the default autoBuild weighting system, allows multi-build up to your current support cap. Overbuilds up to 1000 satellites if they are free. Autobuild toggle is still respected.");
+        addSettingsNumber(currentNode, "buildingSpecialSwarmSatMoneyCap", "Smart Swarm Satellite money cap", "For Swarm Satellites: Disables smart buying as soon as the next satellite's money cost exceeds this amount. Regular build behavior will be active while above this money cost. No effect if Smart Swarm Satellites is disabled.");
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }
@@ -18438,6 +20671,7 @@
         currentNode.empty().off("*");
 
         addSettingsToggle(currentNode, "arpaScaleWeighting", "Scale weighting with progress", "Projects weighting scales  with current progress, making script more eager to spend resources on finishing nearly constructed projects.");
+        addSettingsToggle(currentNode, "arpaDemandWhole", "Demand whole project", "When there is an active trigger for a project, this will prioritize resources for the full set of all remaining steps instead of just the current step size. Recommended for fast runs at high prestige levels.");
         addSettingsNumber(currentNode, "arpaStep", "Preferred progress step", "Projects will be weighted and build in this steps. Increasing number can speed up constructing. Step will be adjusted down when preferred step above remaining amount, or surpass storage caps. Weightings below will be multiplied by current step. Projects builded by triggers will always have maximum possible step.");
 
         currentNode.append(`
@@ -18495,6 +20729,187 @@
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }
 
+
+    function buildSnippetSettings() {
+        let sectionId = "snippet";
+        let sectionName = "Snippet";
+
+        let resetFunction = function() {
+            resetSnippetSettings(true);
+            updateSettingsFromState();
+            updateSnippetSettingsContent();
+
+            resetCheckbox("autoSnippet");
+        };
+
+        buildSettingsSection(sectionId, sectionName, resetFunction, updateSnippetSettingsContent);
+    }
+
+    function updateSnippetSettingsContent() {
+        let currentScrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+
+        const cleaner = () => {
+            SnippetManager.softResetAllSnippets();
+            updateSnippetSettingsContent();
+            updateSettingsFromState();
+        };
+
+        let currentNode = $('#script_snippetContent');
+        currentNode.empty().off("*");
+
+        currentNode.append('<div style="margin-top: 10px;"><button id="script_snippet_add" class="button">Add New Snippet</button></div>');
+
+        currentNode.append('<div style="margin-top: 10px;"><button id="script_snippet_showDecl" class="button" title="This displays the TypeScript definitions backing the snippet system. They are partially autogenerated, so they are rough and were mostly intended for autocomplete. Unfortunately there is no better documentation at the moment.">View API Definition</button></div>');
+
+        currentNode.append(`
+          <table style="width:100%">
+            <tr>
+              <th class="has-text-warning" style="width: 60px">&nbsp;</th>
+              <th class="has-text-warning">Title</th>
+              <th class="has-text-warning" style="width: 140px">&nbsp;</th>
+            </tr>
+            <tbody id="script_snippetTableBody"></tbody>
+          </table>`);
+
+        let tableBodyNode = $('#script_snippetTableBody');
+
+        for (let i = 0; i < settingsRaw.snippets.length; i++) {
+            const snippet = settingsRaw.snippets[i];
+            let node = $(`
+            <tr data-idx="${i}" class="script-draggable" id="script-snippets---${i}" style="height: 40px">
+                <td class="script-snippet-toggle"></td>
+                <td class="script-snippet-title">${snippet.title}</td>
+                <td class="script-buttons">
+                    <button class="edit-button button is-dark is-small" style="margin: -4px 0 0 0; padding: 1px 12px;">✎</button>
+                    <button class="delete-button button is-dark is-small" style="margin: -4px 0 0 8px; padding: 1px 12px;">X</button>
+                    <span class="script-snippet-title-indicators"></span>
+                </td>
+            </tr>
+            `);
+            node.find("td").css("padding-bottom", "0.35em");
+            addTableToggle(node.find(".script-snippet-toggle"), `snippets---${i}---active`, getOverrideModalPathHandler(['snippets', i, 'active'], ['snippets', i, 'activeOverrides']));
+            tableBodyNode.append(node);
+        }
+
+        tableBodyNode.on("click", ".edit-button", (e) => {
+            let idx = parseInt(e.target?.closest("tr")?.dataset?.idx, 10);
+            if (!isNaN(idx)) {
+                const snip = settingsRaw.snippets[idx];
+                SnippetEditorManager.openEditorModal(snip);
+            }
+        });
+
+        tableBodyNode.on("click", ".delete-button", (e) => {
+            let idx = parseInt(e.target?.closest("tr")?.dataset?.idx, 10);
+            if (!isNaN(idx)) {
+                const snip = settingsRaw.snippets[idx];
+                if (confirm(`Are you sure you want to permanently delete ${snip.title}?`)) {
+                    SnippetManager.resetSnippet(snip);
+                    settingsRaw.snippets.splice(idx, 1);
+                    cleaner();
+                }
+            }
+        });
+
+        // If the browser window is closed, we make a backup in localStorage (beforeunload).
+        if (localStorage.getItem("EvolveScriptSnippetEditPrecloseBackup") !== null) {
+            currentNode.append(`
+                <p class="has-text-warning">⚠️ Code editor was closed uncleanly. Backup data is present.</p>
+                <div style="margin: 10px 0;">
+                    <button id="script_snippet_preclose_restore" class="button">Recover Backup Data as New Disabled Snippet</button>
+                    <button id="script_snippet_preclose_wipe" class="button">Delete Backup Data</button>
+                </div>
+            `);
+
+            $("#script_snippet_preclose_restore").on("click", () => {
+                let recoveredCode = localStorage.getItem("EvolveScriptSnippetEditPrecloseBackup");
+                settingsRaw.snippets.push({ id: SnippetManager.randomId(), title: "Recovered Backup Data", code: recoveredCode, active: false });
+                localStorage.removeItem("EvolveScriptSnippetEditPrecloseBackup");
+                cleaner();
+            });
+            $("#script_snippet_preclose_wipe").on("click", () => {
+                localStorage.removeItem("EvolveScriptSnippetEditPrecloseBackup");
+                cleaner();
+            });
+        }
+
+        // TODO: Put documentation or something.
+        const exampleScript =
+`// Snippets are pieces of JavaScript that run every tick. They can be used in place of editing this script for many things.
+// They can also execute complex pieces of logic.
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript
+//
+// This code editor is based on Visual Studio Code's Monaco editor.
+// You can many of the following hotkeys:
+// https://code.visualstudio.com/shortcuts/keyboard-shortcuts-windows.pdf
+//
+// Of particular note is the autocompletion. Many functions and their arguments can be autocompleted by pressing ctrl-space.
+//
+// Snippets must call most of their functions _on each tick_.
+// This means you don't have to worry about cleanup.
+// A line of code like this will behave as expected, instead of making a large "queue":
+// if (buildings.RedZiggurat.count < 20) trigger(buildings.RedZiggurat);
+//
+// Special functions available include:
+// Triggers. These don't block each other for resources.
+// * trigger(buildings.RedZiggurat). Can be used to trigger buildings. Put in just the buildings. bit and press ctrl+space for autocomplete.
+// * trigger(techIds["tech-scarletite"]). Can be used to trigger technology. Put in just the "tech-" bit and press ctrl+space for autocomplete.
+// * trigger(projects.SuperCollider). Can be used to trigger ARPAs. Put in just the projects. bit and press ctrl+space for autocomplete.
+// * trigger(resourceList({Mythril: 1e5, Bolognium: 1e5})). Creates a custom trigger, demanding the resources and preventing them from being spent. Can be used to force crafting. An array can be passed as second argument, listing buildings allowed to spend those materials.
+// Helpers.
+// * once(() => { console.log("Hello!"); }); . Runs a function only once, unless the snippet is reset. The return value is cached and immediately returned after.
+// * daily(() => { console.log("Today's a day, today's a new day"); }); . Runs a function every in-game day. The return value is cached and immediately returned until a new day passes. Doesn't run during evolution.
+// * return stopRunning(); . Stops running your snippet. Note that snippets will be given a "second chance" after evolution.
+// UI.
+// Your snippet can have basic settings (toggles, numbers and strings only). These can have user overrides applied to them, too.
+// Autocomplete on the ui. object for more info.
+// Eval functions.
+// * _("Challenge", "lone_survivor")
+// These are the easiest way to do checks if you don't want to dig into the game data.
+// Advanced autocomplete is available for these, you can complete both available types and most arguments.
+// TIP: You can copy-paste these from the override dialog by clicking the E button on an override.
+//
+// Special behaviors include the ability to write to the settings object to create a special one-tick override.
+// This has higher priority than normal overrides, so use it with caution.
+// For example, you can briefly turn script features off by doing something like settings.autoJobs = false;
+//
+// If you want to store data between ticks, use the snippetState object.
+// Note that editing snippets or refreshing the page will reset the snippet and their state, so you should try to come up with a fallback.
+//
+// For samples, see: https://github.com/kewne7768/snippet-samples
+`;
+
+        $("#script_snippet_add").on("click", (e) => {
+            settingsRaw.snippets.push({id: SnippetManager.randomId(), title: "New Snippet", code: exampleScript, active: true});
+            cleaner();
+        });
+
+        $("#script_snippet_showDecl").on("click", (e) => {
+            SnippetEditorManager.openDeclModal();
+        });
+        tableBodyNode.sortable({
+            items: "tr:not(.unsortable)",
+            helper: sorterHelper,
+            update: function () {
+                let newOrder = tableBodyNode.sortable('toArray', { attribute: 'data-idx' });
+                let newArray = [];
+                for (let i = 0; i < newOrder.length; i++) {
+                    newArray[i] = settingsRaw.snippets[newOrder[i]];
+                }
+                settingsRaw.snippets = newArray;
+
+                cleaner();
+            },
+        });
+
+        SnippetManager.updateSnippetIndicators();
+        SnippetManager.redrawSnippetUI();
+        addSettingsHeader1(currentNode, "Custom Settings");
+        currentNode.append(SnippetManager.settingsUIRoot);
+
+        document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
+    }
+
     function buildLoggingSettings(parentNode, secondaryPrefix) {
         let sectionId = "logging";
         let sectionName = "Logging";
@@ -18536,6 +20951,120 @@
             this.value = settingsRaw.logFilter;
             updateSettingsFromState();
         });
+
+        // These buttons will misbehave entirely if the DB feature is disabled, as the indexedDB won't be open/shouldn't be open
+        // without the user having confirmed they persisted it.
+        // And that requires permissions to persist properly, and we don't want to bother users that don't want it.
+        // Easy fix: Only render them if the feature is enabled.
+        const initPrestigeDB = () => {
+            if (settingsRaw.prestigeDBenabled) {
+                PrestigeDBManager.init();
+                updateWarningText();
+                navigator.storage.persist().then(updateWarningText);
+            }
+        };
+
+        addSettingsHeader1(currentNode, "Prestige DB");
+
+        const updateWarningText = () => {
+            navigator.storage.persisted().then((p) => {
+                if (p) {
+                    warning.text(`Persistent storage rights granted. Your browser should not randomly wipe the database. It's still recommended to use the export button on a regular basis, though.`);
+                }
+                else {
+                    warning.text(`Persistent storage rights denied. Warning: your browser may clear the history at any moment, such as if it runs out of cache space.`);
+                }
+            });
+        }
+        let warning = $("<p>").text(`If you choose to enable the optional prestige database feature, persistent storage rights will be requested in your browser. Those rights are also technically optional, but if you don't grant these rights, your browser is likely to delete the log to free up disk space when needed. Regular exports using the export to JSON button are strongly suggested either way.`).appendTo(currentNode);
+
+        let enabledNode = addSettingsToggle(currentNode, "prestigeDBenabled", "Enable prestige database", "Keeps track of your prestige times in a database. Activating this setting may pop up a dialog asking for data storage permissions. Do not add an override to this setting, add it to the log setting instead.", initPrestigeDB, initPrestigeDB);
+        enabledNode.off("click"); // hack to prevent overrides, this is a technical setting only present because of the additional permissions required
+
+        // TODO: Hide all of this if the database has never been enabled.
+        // TODO: Consider moving this to a different section. (I'm too lazy to set up scaffolding...)
+        let prestigeDBsection = $("<div>");
+        currentNode.append(prestigeDBsection);
+        addSettingsToggle(prestigeDBsection, "prestigeDBlog", "Log entries", "Adds new entries to the database. (Use an override on this setting to disable logging irrelevant runs.)");
+
+        $(`<button class="button" style="margin: 6px 6px 6px 0">Open Graphs</button>`).on("click", e => {
+            PrestigeDBManager.uiGraphs();
+        }).appendTo(prestigeDBsection);
+
+        addSettingsHeader2(prestigeDBsection, "Prestige DB: Import/export");
+
+        let progressP = $(`<p style="margin-bottom: 0">Import/export status: <span>Not started</span></p>`).appendTo(prestigeDBsection);
+        let progressText = progressP.find("span");
+
+        // This element is hidden but clicked by the button.
+        let fileInput = $(`<input type="file" id="script-prestigedb-import-file" accept=".json" style="display: none">`).on("change", async (e) => {
+            let fileElement = fileInput[0];
+            if (!fileElement.files.length) {
+                progressText.text("⚠️ Import failed: You must select a file first.");
+                return;
+            }
+
+            let file = fileElement.files[0];
+            let reader = new FileReader();
+            progressText.text("Loading file, please wait.");
+            reader.onloadend = async (pe) => {
+                progressText.text("Importing, please wait.");
+                let json;
+                try {
+                    json = JSON.parse(reader.result);
+                    if (!Array.isArray(json.entries)) {
+                        progressText.text(`⚠️ Invalid file: Invalid contents: .entries expected to be array`);
+                    }
+                }
+                catch (err) {
+                    progressText.text(`⚠️ Invalid file: JSON parsing failed: ${err}`);
+                    fileElement.value = null;
+                    return;
+                }
+
+                try {
+                    let result = await PrestigeDBManager.importDatabase(json);
+                    progressText.text(`✅ ${result}`);
+                }
+                catch (err) {
+                    progressText.text(`⚠️ ${err}`);
+                }
+
+                fileElement.value = null;
+            };
+            reader.readAsText(file);
+        }).appendTo(prestigeDBsection);
+        let importButton = $(`<button class="button" style="margin: 6px 6px 6px 0">Import PrestigeDB from JSON</button>`).on("click", async (e) => {
+            // Need to make sure the DB is open, otherwise we'll fail anyway.
+            if (!PrestigeDBManager.isAvailable()) { progressText.text(`⚠️ Database unavailable.`); return; }
+            fileInput.click();
+        }).appendTo(prestigeDBsection);
+
+        let exportButton = $(`<button class="button" style="margin: 6px 6px 6px 0">Export PrestigeDB as JSON</button>`).on("click", async (e) => {
+            progressText.text("Running");
+            let result;
+            try {
+                result = await PrestigeDBManager.uiDownloadAll();
+            }
+            catch (e) {
+                result = `⚠️ ${e}`;
+            }
+            progressText.text(result);
+        }).appendTo(prestigeDBsection);
+
+        let csvButton = $(`<button class="button" style="margin: 6px 6px 6px 0" title="This CSV is only for use in other apps and cannot be re-imported into this script. Hold your 10X key to remove logString field.">Get CSV</button>`).on("click", async (e) => {
+            progressText.text("Running");
+            let result;
+            try {
+                let banned = undefined;
+                if (KeyManager._userState.x10) banned = ["logString"];
+                result = await PrestigeDBManager.uiDownloadCSV(banned);
+            }
+            catch (e) {
+                result = `⚠️ ${e}`;
+            }
+            progressText.text(result);
+        }).appendTo(prestigeDBsection);
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }
@@ -18784,11 +21313,12 @@
             createSettingToggle(togglesNode, 'autoGraphenePlant', 'Manages graphene plant. Not user configurable - just uses least demanded resource for fuel.');
             createSettingToggle(togglesNode, 'autoGenetics', 'Managed genetics settings, and automatically assembles genes more optimally than ingame sequencer');
             createSettingToggle(togglesNode, 'autoMinorTrait', 'Purchase minor traits using genes according to their weighting settings. Also manages Mimic genus, Psychic powers, Ocular powers and wishes.');
-            createSettingToggle(togglesNode, 'autoMutateTraits', 'Mutate in or out major and genus traits. WARNING: This will spend Plasmids and Anti-Plasmids.');
+            createSettingToggle(togglesNode, 'autoMutateTraits', 'Mutate in or out major and genus traits. Also manages soft resets for traits. WARNING: This will spend Plasmids and Anti-Plasmids.');
             createSettingToggle(togglesNode, 'autoEject', 'Eject excess resources to black hole. Normal resources ejected when they close to storage cap, craftables - when above requirements. Disabled when Mass Ejector Optimizer governor task is active.', createEjectToggles, removeEjectToggles);
             createSettingToggle(togglesNode, 'autoSupply', 'Send excess resources to Spire. Normal resources sent when they close to storage cap, craftables - when above requirements. Takes priority over ejector.', createSupplyToggles, removeSupplyToggles);
             createSettingToggle(togglesNode, 'autoNanite', 'Consume resources to produce Nanite. Normal resources sent when they close to storage cap, craftables - when above requirements. Takes priority over supplies and ejector.');
             createSettingToggle(togglesNode, 'autoReplicator', 'Use excess power to replicate resources.');
+            createSettingToggle(togglesNode, 'autoSnippet', 'Runs pieces of user-provided code for advanced customizations.');
 
             createQuickOptions(togglesNode, "s-quick-prestige-options", "Prestige", buildPrestigeSettings);
 
@@ -19331,15 +21861,21 @@
         let conflict = {};
 
         for (let priorityTarget of state.conflictTargets) {
+            if (priorityTarget.allowedConflicts?.length && priorityTarget.allowedConflicts.includes(action)) {
+                continue;
+            }
+
             let blockKnowledge = true;
-            for (let res in priorityTarget.cost) {
-                if (res !== "Knowledge" && resources[res].currentQuantity < priorityTarget.cost[res]) {
+            // In most cases there will be a wrapper object in conflictTargets, so this is rarely used.
+            let priorityTargetCost = (settings.arpaDemandWhole && priorityTarget.fullRemainingCost) ? priorityTarget.fullRemainingCost : priorityTarget.cost;
+            for (let res in priorityTargetCost) {
+                if (res !== "Knowledge" && resources[res].currentQuantity < priorityTargetCost[res]) {
                     blockKnowledge = false;
                     break;
                 }
             }
-            for (let res in priorityTarget.cost) {
-                if ((res !== "Knowledge" || blockKnowledge) && priorityTarget.cost[res] > resources[res].currentQuantity - action.cost[res]) {
+            for (let res in priorityTargetCost) {
+                if ((res !== "Knowledge" || blockKnowledge) && priorityTargetCost[res] > resources[res].currentQuantity - action.cost[res]) {
                     const resList = conflict.resList || [];
                     const actionList = conflict.actionList || [];
                     conflict = {res: resources[res], obj: priorityTarget, resList: [...new Set([...resList, resources[res].name])], actionList: [...new Set([...actionList, priorityTarget.name])]};
@@ -19510,6 +22046,74 @@
         setTimeout(() => { URL.revokeObjectURL(url); }, 60 * 1000);
     }
 
+    // FAQ: "Why is this split key --- instead of something sane and obvious like a dot?"
+    // Answer: Good question! Setting names are used all over the ID and class names.
+    // You can't put dots in an ID and expect things to work, especially since they're often checked via jQuery.
+    // (eg $(".setting-" + settingName + "-toggle"))
+    // That'd change into ".setting-triggers.123.active-toggle" or the like: a check for an element with .setting-triggers, .123 and .active-toggle on it.
+    // That's not what we want, that's a completely different query!
+    // It can be quoted but it'd need to be done consistently everywhere.
+    // So we have three options:
+    // Option 1 is to clean all of that up: put some replace function and use it everywhere where we reference classes or IDs.
+    // It would be an extremely annoying and difficult task with a huge chance of breaking some not obvious things.
+    // Option 2 is to make it a valid CSS identifier, but not one that's already used for something.
+    // Only two options really come to mind: repeats or combinations of - and _. I settled on this with ---.
+    // Could be ___ or the like too.
+    // Option 3 is to not do this. But then, you need some other mechanism that works as triggers get added/moved/deleted.
+    // Eg adding an ID value. Snippets did this but it pollutes the amount of settings very much and is annoying to keep track of.
+    //
+    // (or you can just pass it as array. this is better...)
+    const pathSplitKey = "---";
+
+    // Turns an obj and "a---b---c" style path key (or pre-split array) into "obj?.a?.b?.c". If any of the keys aren't found it will return defValue.
+    function getPathProperty(obj, path, defValue = undefined) {
+        if (!obj) return defValue;
+        let pathParts = Array.isArray(path) ? path : path.split(pathSplitKey);
+        for (let i = 0; i < pathParts.length; i++) {
+            let key = pathParts[i];
+            if (Array.isArray(obj)) {
+                key = parseInt(key, 10);
+            }
+            if (!(key in obj)) return defValue;
+            obj = obj[key];
+        }
+        return obj;
+    }
+
+    // Turns an obj, "a---b---c" style path key (or pre-split array) and a value into "obj.a.b.c = val". Returns true if set succeeded, false if failed.
+    // Warning: if you copy-paste this somewhere else, note of prototype pollution attacks if an untrusted user controls the path.
+    // (Don't really care here.)
+    function setPathProperty(obj, path, value) {
+        if (!obj) return false;
+        let pathParts = Array.isArray(path) ? path : path.split(pathSplitKey);
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            let key = pathParts[i];
+            if (Array.isArray(obj)) {
+                key = parseInt(key, 10);
+            }
+            if (!(key in obj)) return false;
+            obj = obj[key];
+        }
+        obj[pathParts[pathParts.length - 1]] = value;
+        return true;
+    }
+
+    // Takes an obj, "a---b---c" style path key (or pre-split array) and a value to do "delete obj.a.b.c;"
+    function deletePathProperty(obj, path) {
+        if (!obj) return false;
+        let pathParts = Array.isArray(path) ? path : path.split(pathSplitKey);
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            let key = pathParts[i];
+            if (Array.isArray(obj)) {
+                key = parseInt(key, 10);
+            }
+            if (!(key in obj)) return false;
+            obj = obj[key];
+        }
+        delete obj[pathParts[pathParts.length - 1]];
+        return true;
+    }
+
     function traitVal(trait, idx, opt) {
         if (game.global.race[trait]) {
             let val = game.traits[trait].vars()[idx];
@@ -19576,6 +22180,19 @@
         messageQueue: (msg, color, dnr, tags) => game.messageQueue(msg, color, dnr, cloneInto(tags, unsafeWindow)),
         shipCosts: (bp) => game.shipCosts(cloneInto(bp, unsafeWindow)),
     };
+
+    // Try to remove our jQuery $ copy from the global stack, but only if all of these are true:
+    // * we don't have to use sandbox mode (have window + no unsafeWindow or === to window). noConflict assumes it can write to window directly.
+    // * the game's keydown event isn't registered in the global copy - if it is, it's too late to remove or our copy never got loaded in
+    // * there is still a global $ after removal
+    // This should be the case most of the time. We still keep the local $ reference to it.
+    // This isn't required but helps reduce problems with other scripts bringing their own jQuery copy.
+    if (window && (typeof unsafeWindow === "undefined" || unsafeWindow === window) && !window.$._data(window.document).events?.['keydown']) {
+        let tmp = window.$.noConflict();
+        if (!window.$) {
+            window.$ = tmp;
+        }
+    }
 
     $().ready(mainAutoEvolveScript);
 })($);
