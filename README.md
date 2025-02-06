@@ -1,10 +1,12 @@
-This fork contains multiple forks and changes pulled from:
+## This fork contains multiple forks and changes pulled from:
 
 https://github.com/Vollch/Evolve-Automation
 
 https://github.com/kewne7768/evolve_automation
 
 https://github.com/SkyeAmphi/Evolve-Automation-Skye
+
+## This fork also contains script configurations for different farming setups that are found within the Script Configurations folder
 
 ## General Tips
 
