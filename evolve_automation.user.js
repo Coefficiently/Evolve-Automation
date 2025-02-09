@@ -2101,6 +2101,29 @@
               && game.global.genes["mutation"] >= 2;
         }
     }
+    class Random {
+        constructor(seed) {
+            this.seed = seed
+        }
+        advanceSeed(amount) {
+            amount = amount ?? 1;
+            for (let i = 0; i < amount; i++) {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+            }
+            return this.seed
+        }
+        seededRandom(min, max, noAdvance) {
+            max = max || 1;
+            min = min || 0;
+            noAdvance = noAdvance || false
+            let seed = (this.seed * 9301 + 49297) % 233280;
+            let rnd = seed / 233280;
+            if (!noAdvance) {
+                this.seed = seed
+            }
+            return min + rnd * (max - min);
+        }
+    }
 
     // Script constants
 
@@ -2165,7 +2188,7 @@
     const evolutionSettingsToStore = ["userEvolutionTarget", "prestigeType", ...challenges.map(c => "challenge_" + c[0].id)];
     const logIgnore = ["food", "lumber", "stone", "chrysotile", "slaughter", "s_alter", "slave_market", "horseshoe", "assembly", "cloning_facility", "ambush_patrol", "raid_supplies", "siege_fortress"];
     const galaxyRegions = ["gxy_stargate", "gxy_gateway", "gxy_gorddon", "gxy_alien1", "gxy_alien2", "gxy_chthonian"];
-    const settingsSections = ["toggle", "general", "prestige", "evolution", "research", "market", "storage", "production", "war", "hell", "fleet", "job", "building", "project", "government", "logging", "trait", "weighting", "ejector", "planet", "mech", "magic", "trigger", "snippet"];
+    const settingsSections = ["toggle", "general", "prestige", "evolution", "research", "market", "storage", "production", "war", "hell", "fleet", "job", "building", "project", "government", "logging", "trait", "weighting", "ejector", "planet", "mech", "magic", "trigger", "rngPrediction", "snippet"];
     const mutationCostMultipliers = {sludge: {gain: 10, purge: 10}, ultra_sludge: {gain: 10, purge: 10}, custom: {gain: 10, purge: 10}};
     const mutationCostMultipliersGenus = {hybrid: {gain: 2, purge: 2}};
     const specialRaceTraits = {beast_of_burden: "reindeer", photosynth: "plant"};
@@ -7724,6 +7747,680 @@ declare global {
             return !!this._openDB;
         }
     }
+    var RngPredictionManager = {
+        seed: -1,
+        minorWish: {},
+        majorWish: {},
+        updatePrediction() {
+            // TODO: Some wishes only depend on the seed but others depend on tech, resource amount and capacity and other factors
+            //       To optimize performance only recalculate the prediction of each type if their factors have changed.
+            if (!settings.enableRngPrediction) {
+                return;
+            }
+            this.seed = game.global.seed;
+            this.updateWishPredictions();
+        },
+        updateWishPredictions() {
+            if (!game.global.race['wish']) {
+                return
+            }
+            wishData.minor.map(wish => wish.id).forEach(wish => this.minorWish[wish] = this.predictMinorWish(wish));
+            wishData.major.map(wish => wish.id).forEach(wish => this.majorWish[wish] = this.predictMajorWish(wish));
+        },
+        predictMinorWish(wishName) {
+            let random = new Random(this.seed)
+            let result = {spell: '', duration:0, amount:0, description:''}
+            let affix = game.global.settings.affix;
+            switch (wishName)
+            {
+            case 'Know':
+                {
+                    let options = ['inspire'];
+                    if (!game.global.race['lone_survivor'] && !game.global.race['cataclysm'] && !game.global.race['orbit_decay']){
+                        options.push('know');
+                    }
+                    if (game.global.tech['science']){
+                        if (game.global.tech.science >= 1 && game.global.tech.science <= 3){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['high_tech'] && game.global.tech.high_tech >= 3 && game.global.tech.science >= 4 && game.global.tech.science <= 6){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['high_tech'] && game.global.tech.high_tech >= 4 && game.global.tech.science === 7){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['space'] && game.global.tech.space >= 3 && game.global.tech.science === 8 && game.global.tech['luna']){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['alpha'] && game.global.tech.alpha >= 2 && game.global.tech.science === 11){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['high_tech'] && game.global.tech.high_tech >= 12 && game.global.tech.science === 12){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['infernite'] && game.global.tech.infernite >= 2 && game.global.tech.science === 13){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['neutron'] && game.global.tech.science === 14){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['xeno'] && game.global.tech.xeno >= 4 && game.global.tech.science === 15){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['high_tech'] && game.global.tech.high_tech >= 16 && game.global.tech.science === 16){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['conflict'] && game.global.tech.conflict >= 5 && game.global.tech.science === 17){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['high_tech'] && game.global.tech.high_tech >= 17 && game.global.tech.science === 18){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['high_tech'] && game.global.tech.high_tech >= 18 && game.global.tech.science === 19){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['asphodel'] && game.global.tech.asphodel >= 3 && game.global.tech.science === 21){
+                            options.push('science');
+                        }
+                        else if (game.global.tech['asphodel'] && game.global.tech.asphodel >= 8 && game.global.tech.science === 22){
+                            options.push('science');
+                        }
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'inspire':
+                        {
+                            result.duration = Math.floor(random.seededRandom(300,600));
+                            result.description = 'Inspired, +100% knowledge generation for ' + result.duration + ' days';
+                        }
+                        break;
+                        case 'know':
+                        {
+                            result.amount = Math.floor(random.seededRandom(game.global.resource.Knowledge.max / 5,game.global.resource.Knowledge.max / 2));
+                            result.description = 'Gain ' + sizeApproximation(result.amount, affix) + ' knowledge';
+                        }
+                        break;
+                        case 'science':
+                        {
+                            let techs = {
+                                2: 'Dewey Decimal System', 3: 'Thesis Papers', 4: 'Research Grants', 5: 'Scientific Journal', 6: 'Adjunct Professor', 7: 'Tesla Coil', 8: 'Internet',
+                                9: 'Space Observatory', 12: 'Laboratory', 13: 'Virtual Assistant', 14: 'Dimensional Readings', 15: 'Quantum Entanglement',
+                                16: 'Scientific Expeditions', 17: 'Subspace Sensors', 18: 'Alien Database', 19: 'Orichalcum Capacitor', 20: 'Advanced Biotech'
+                            };
+                            result.description = 'Research ' + techs[game.global.tech.science + 1];
+                        }
+                        break;
+                    }
+                }
+                break;
+            case 'Money':
+                {
+                    let options = ['money','robbery'];
+                    if ((game.global.race.wishStats?.tax || 0) === 0){
+                        options.push('taxes');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'money':
+                        {
+                            result.amount = Math.floor(random.seededRandom(1,Math.round(game.global.resource.Money.max / 8)));
+                            result.description = 'Gain $' + sizeApproximation(result.amount, affix);
+                        }
+                        break;
+                        case 'taxes':
+                        {
+                            result.description = 'Increase maximum tax by 5% (once per run)'
+                        }
+                        break;
+                        case 'robbery':
+                        {
+                            result.amount = Math.floor(random.seededRandom(1,Math.round(game.global.resource.Money.max / 8)));
+                            Math.floor(random.seededRandom(0,10)); // Victim, not relevant for us
+                            result.duration = Math.floor(random.seededRandom(50,100));
+                            result.description =  'Gain $' + sizeApproximation(result.amount, affix) + '. Morale penalty for ' + result.duration + ' days'
+                        }
+                        break;
+                    }
+                }
+                break;
+            case 'Res':
+                {
+                    let options = ['useless','common','rare','stolen','2xcommon','2xrare'];
+                    let spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    result.spell = spell
+                    let resList = [];
+                    [
+                        'Lumber','Stone','Furs','Copper','Iron','Aluminium','Cement','Coal','Oil','Uranium',
+                        'Steel','Titanium','Alloy','Polymer','Iridium','Helium_3','Crystal','Chrysotile'
+                    ].forEach(function(res){
+                        if (game.global.resource[res].display && game.global.resource[res].amount * 1.05 < game.global.resource[res].max){
+                            resList.push(res);
+                        }
+                    });
+                    if (spell === 'rare' || spell === 'stolen' || spell === '2xrare'){
+                        [
+                            'Deuterium','Neutronium','Adamantite','Nano_Tube','Graphene','Stanene','Bolognium',
+                            'Vitreloy','Orichalcum','Infernite','Elerium','Soul_Gem'
+                        ].forEach(function(res){
+                            if (game.global.resource[res].display && (res === 'Soul_Gem' || game.global.resource[res].amount * 1.05 < game.global.resource[res].max)){
+                                resList.push(res);
+                            }
+                        });
+                    }
+                    if (spell === 'useless' || resList.length === 0){
+                        result.amount = Math.floor(random.seededRandom(1,game.global.stats.know));
+                        result.description = 'Gain ' + sizeApproximation(result.amount, affix) + ' Pocket Lint'
+                    }
+                    else {
+                        let picked = [resList[Math.floor(random.seededRandom(0,resList.length))]];
+                        if (spell === '2xcommon' || spell === '2xrare'){
+                            picked.push(resList[Math.floor(random.seededRandom(0,resList.length))]);
+                        }
+                        let gains = [];
+                        picked.forEach(function(res){
+                            let gain = 0;
+                            if (res === 'Soul_Gem'){
+                                gain = Math.floor(random.seededRandom(1,game.global.tech['science'] || 2));
+                            }
+                            else {
+                                gain = Math.floor(random.seededRandom(1,Math.floor(game.global.resource[res].max * 0.25)));
+                            }
+                            gains.push(gain);
+                        });
+                        if (['2xcommon','2xrare'].includes(spell)){
+                            result.amount = [{val:gains[0], res:picked[0]}, {val:gains[1], res:picked[1]}];
+                            result.description = 'Gain ' + sizeApproximation(gains[0], affix) + ' ' + game.global.resource[picked[0]].name + ' and ' + sizeApproximation(gains[1], affix) + ' ' + game.global.resource[picked[1]].name
+                        }
+                        else if (['common','rare'].includes(spell)){
+                            result.amount = [{val:gains[0], res:picked[0]}];
+                            result.description = 'Gain ' + sizeApproximation(gains[0], affix) + ' ' + game.global.resource[picked[0]].name
+                        }
+                        else if (spell === 'stolen'){
+                            result.duration = Math.floor(random.seededRandom(50,100));
+                            result.amount = [{val:gains[0], res:picked[0]}];
+                            result.description = 'Gain ' + sizeApproximation(gains[0], affix) + ' ' + game.global.resource[picked[0]].name + ', Morale penalty for ' + result.duration + ' days'
+                        }
+                    }
+                }
+                break;
+            case 'Love':
+                {
+                    let options = ['pet'];
+                    let rivals = ['gov0','gov1','gov2'];
+                    if (game.global.race['truepath'] && !game.global.tech['isolation'] && game.global.tech['rival']){
+                        rivals.push('gov3');
+                    }
+                    rivals.forEach(function(gov){
+                        if (game.global.civic.foreign[gov].hstl > 0 && !game.global.civic.foreign[gov].anx && !game.global.civic.foreign[gov].buy && !game.global.civic.foreign[gov].occ){
+                            options.push(gov);
+                        }
+                    });
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell) {
+                        case 'pet':
+                            result.description = 'Gain a pet, +1% Morale (once per run)';
+                            break;
+                        case 'gov0':
+                            result.description = 'Set hostility with forein power #1 to 0';
+                            break;
+                        case 'gov1':
+                            result.description = 'Set hostility with forein power #2 to 0';
+                            break;
+                        case 'gov2':
+                            result.description = 'Set hostility with forein power #3 to 0';
+                            break;
+                        case 'gov3':
+                            result.description = 'Set hostility with forein power #4 to 0';
+                            break;
+                    }
+                }
+                break;
+            case 'Excite':
+                {
+                    result.spell = 'minorEvent';
+                    result.description = 'Trigger a minor event'; // TODO implement event prediction
+                }
+                break;
+            case 'Fame':
+                {
+                    let options = ['notorious','reputable'];
+                    random.seededRandom(0,10)
+                    random.seededRandom(0,1)
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'notorious':
+                        {
+                            result.description = 'Become notorious (-10% Morale)'
+                        }
+                        break;
+                        case 'reputable':
+                        {
+                            result.description = 'Become reputable (+10% Morale)'
+                        }
+                        break;
+                    }
+                }
+                break;
+            case 'Strength':
+                {
+                    let options = ['troops'];
+                    if (!game.global.race['strong']){
+                        options.push('trait');
+                    }
+                    if (game.global.tech['military']){
+                        if (game.global.tech.military === 1){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 2 && game.global.tech['explosives']){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 3 && game.global.tech['oil']){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 4 && game.global.tech['high_tech'] && game.global.tech.high_tech >= 4){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 5 && game.global.tech['mass']){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 6 && game.global.tech['high_tech'] && game.global.tech.high_tech >= 9 && game.global.tech['elerium']){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 7 && game.global.tech['high_tech'] && game.global.tech.high_tech >= 13){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 8 && game.global.tech['high_tech'] && game.global.tech.high_tech >= 14 && game.global.tech['science'] && game.global.tech.science >= 15 && game.global.tech['infernite']){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 9 && game.global.tech['science'] && game.global.tech.science >= 18){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 10 && game.global.tech['high_tech'] && game.global.tech.high_tech >= 18){
+                            options.push('military');
+                        }
+                        else if (game.global.tech.military === 11 && game.global.tech['asphodel'] && game.global.tech.asphodel >= 5){
+                            options.push('military');
+                        }
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'troops':
+                        {
+                            if ((game.global.race.wishStats?.troop || 0) < 25){
+                                result.description = 'Gain a soldier (to a maximum of 25 soldiers)'
+                            }
+                        }
+                        break;
+                        case 'trait':
+                        {
+                            result.description = 'Gain Strong trait at rank 0.25'
+                        }
+                        break;
+                        case 'military':
+                        {
+                            let techs = {
+                                2: 'bows', 3: 'flintlock_rifle', 4: 'machine_gun', 5: 'bunk_beds', 6: 'rail_guns', 7: 'laser_rifles',
+                                8: 'plasma_rifles', 9: 'disruptor_rifles', 10: 'gauss_rifles', 11: 'cyborg_soldiers', 12: 'ethereal_weapons',
+                            };
+                            result.description = 'Research ' + techs[game.global.tech.military + 1]
+                        }
+                        break;
+                    }
+                }
+                break;
+            case 'Influence':
+                {
+                    let options = ['magazine'];
+                    if (!(game.global.race.wishStats?.astro || false)){
+                        options.push('astro');
+                    }
+                    if ((game.global.race.wishStats?.prof || 0) < 25 && game.global.civic.professor.display){
+                        options.push('professor');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'magazine':
+                        {
+                            result.description = 'Magazine (no effect)'
+                        }
+                        break;
+                        case 'astro':
+                        {
+                            result.description = 'Boost astrology effect (once per run)'
+                        }
+                        break;
+                        case 'professor':
+                        {
+                            result.description = 'Gain a professor (up to a limit of 25 professors)'
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+            return result;
+        },
+        predictMajorWish(wishName) {
+            let random = new Random(this.seed)
+            let result = {spell: '', duration:0, amount:0, description:''}
+            let affix = game.global.settings.affix;
+            switch (wishName)
+            {
+                case 'BigMoney':
+                {
+                    let options = ['money','robbery'];
+                    if (!(game.global.race.wishStats?.casino || false)){
+                        options.push('casino');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'money':
+                            {
+                                result.amount = Math.floor(random.seededRandom(Math.round(game.global.resource.Money.max / 12), Math.round(game.global.resource.Money.max / 4)));
+                                result.description = 'Receive $' + sizeApproximation(result.amount, affix)
+                            }
+                            break;
+                        case 'robbery':
+                            {
+                                result.amount = Math.floor(random.seededRandom(Math.round(game.global.resource.Money.max / 12),Math.round(game.global.resource.Money.max / 4)));
+                                Math.floor(random.seededRandom(0,10)); // Victim, not relevant
+                                result.duration = Math.floor(random.seededRandom(100,200));
+                                result.description = 'Steal $' + sizeApproximation(result.amount, affix) + '. Morale penalty for ' + result.duration + ' days.'
+                            }
+                            break;
+                        case 'casino':
+                            {
+                                Math.floor(random.seededRandom(0,10)); // Game, not relevant
+                                result.description = 'Casino profits +35% (once per run)'
+                            }
+                            break;
+                    }
+                }
+                break;
+            case 'BigRes':
+                {
+                    let options = ['useless','common','rare','stolen','2xcommon','2xrare'];
+                    let spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    result.spell = spell;
+                    let resList = [];
+                    [
+                        'Lumber','Stone','Furs','Copper','Iron','Aluminium','Cement','Coal','Oil','Uranium',
+                        'Steel','Titanium','Alloy','Polymer','Iridium','Helium_3','Crystal','Chrysotile'
+                    ].forEach(function(res){
+                        if (game.global.resource[res].display && game.global.resource[res].amount * 1.05 < game.global.resource[res].max){
+                            resList.push(res);
+                        }
+                    });
+                    if (spell === 'rare' || spell === 'stolen' || spell === '2xrare'){
+                        [
+                            'Deuterium','Neutronium','Adamantite','Nano_Tube','Graphene','Stanene','Bolognium',
+                            'Vitreloy','Orichalcum','Infernite','Elerium','Soul_Gem'
+                        ].forEach(function(res){
+                            if (game.global.resource[res].display && (res === 'Soul_Gem' || game.global.resource[res].amount * 1.05 < game.global.resource[res].max)){
+                                resList.push(res);
+                            }
+                        });
+                    }
+                    if (spell === 'useless' || resList.length === 0){
+                        result.amoun = Math.floor(random.seededRandom(100,game.global.stats.know * 4));
+                        result.description = 'Gain ' + sizeApproximation(result.amount, affix) + ' Pocket Lint'
+                    }
+                    else {
+                        let picked = [resList[Math.floor(random.seededRandom(0,resList.length))]];
+                        if (spell === '2xcommon' || spell === '2xrare'){
+                            picked.push(resList[Math.floor(random.seededRandom(0,resList.length))]);
+                        }
+                        let gains = [];
+                        picked.forEach(function(res){
+                            let gain = 0;
+                            if (res === 'Soul_Gem'){
+                                gain = Math.floor(random.seededRandom(1,(game.global.tech['science'] + game.global.tech['high_tech']) || 2));
+                            }
+                            else {
+                                gain = Math.floor(random.seededRandom(10000,Math.floor(game.global.resource[res].max * 0.5)));
+                            }
+                            gains.push(gain);
+                        });
+                        if (['2xcommon','2xrare'].includes(spell)){
+                            result.amount = [{val:gains[0], res:picked[0]}, {val:gains[1], res:picked[1]}];
+                            result.description = 'Gain ' + sizeApproximation(gains[0], affix) + ' ' +  game.global.resource[picked[0]].name + ' and ' + sizeApproximation(gains[1], affix) + ' ' + game.global.resource[picked[1]].name
+                        }
+                        else if (['common','rare'].includes(spell)){
+                            result.amount = [{val:gains[0], res:picked[0]}];
+                            result.description = 'Gain ' + sizeApproximation(gains[0], affix) + ' ' +  game.global.resource[picked[0]].name
+                        }
+                        else if (spell === 'stolen'){
+                            result.duration = Math.floor(random.seededRandom(100,200));
+                            result.amount = [{val:gains[0], res:picked[0]}];
+                            result.description = 'Steal ' + sizeApproximation(gains[0], affix) + ' ' +  game.global.resource[picked[0]].name + '. Morale penalty for ' + result.duration + ' days.'
+                        }
+                    }
+                }
+                break;
+            case 'Plasmid':
+                {
+                    let options = ['fake','future'];
+                    if (game.global.tech['blackhole'] && game.global.tech.blackhole >= 5 && game.global.interstellar['mass_ejector'] && game.global.interstellar.mass_ejector.count >= 1){
+                        options.push('blackhole');
+                    }
+                    else if (!game.global.race['cataclysm'] && !game.global.race['lone_survivor'] && game.global.race.species !== 'sludge'){
+                        options.push('mad');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'fake':
+                            {
+                                result.amount = Math.floor(random.seededRandom(100,50000));
+                                result.description = 'Gain ' + result.amount + ' Pl sm ds (fake)'
+                            }
+                            break;
+                        case 'future':
+                            {
+                                result.amount = Math.floor(random.seededRandom(2,game.global.tech.science + 2));
+                                result.description = 'Gain ' + result.amount + (game.global.race.universe === 'antimatter' ? ' Antiplasmids' : ' Plasmids') + ' temporarily';
+                            }
+                            break;
+                        case 'mad':
+                            {
+                                result.description = 'Initiate a MAD reset'
+                            }
+                            break;
+                        case 'blackhole':
+                            {
+                                result.description = 'Initiate a Blackhole reset'
+                            }
+                            break;
+                    }
+                }
+                break;
+            case 'Power':
+                {
+                    let options = ['potato'];
+                    if (!(game.global.race.wishStats?.ship || false) && (game.global.tech['shipyard'] || (game.global.tech['science'] && game.global.tech.science >= 16))){
+                        options.push('ship');
+                    }
+                    if (!(game.global.race.wishStats?.gov)){
+                        options.push('government');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'potato':
+                        {
+                            result.description = 'Energized (+1MW from Potato battery)'
+                        }
+                        break;
+                        case 'ship':
+                        {
+                            result.description = 'Stronger fleet (once per run)'
+                        }
+                        break;
+                        case 'government':
+                        {
+                            result.description = 'Switch to Dictatorship government'
+                        }
+                        break;
+                    }
+                }
+                break;
+            case 'Adoration':
+                {
+                    let options = ['priest'];
+                    if (!(game.global.race.wishStats?.temple || false)){
+                        options.push('temple');
+                    }
+                    if (!(game.global.race.wishStats?.zigg || false)){
+                        options.push('zigg');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'priest':
+                        {
+                            if ((game.global.civic.priest.display && game.global.race.wishStats?.priest || 0) < 25){
+                                result.description = 'Gain a priest (to a maximum of 25 priests)'
+                            }
+                            else {
+                                result.description = 'Fail to gain a priest (limit alrady reached)'
+                            }
+                        }
+                        break;
+                        case 'temple':
+                        {
+                            result.description = 'Gain a free temple (once per run)'
+                        }
+                        break;
+                        case 'zigg':
+                        {
+                            result.description = 'Gain a free Ziggurat (once per run)'
+                        }
+                        break;
+                    }
+                }
+                break;
+            case 'Thrill':
+                {
+                    // let event = event_pool[Math.floor(seededRandom(0,event_pool.length))];
+                    result.spell = 'majorEvent';
+                    result.description = 'Trigger a major event'; // TODO implement event prediction
+                }
+                break;
+            case 'Peace':
+                {
+                    let options = ['flower'];
+                    let rivals = ['gov0','gov1','gov2'];
+                    rivals.forEach(function(gov){
+                        if (!game.global.civic.foreign[gov].anx && !game.global.civic.foreign[gov].buy && !game.global.civic.foreign[gov].occ && !game.global.tech['world_control']){
+                            options.push(gov);
+                        }
+                    });
+                    if (game.global.race['truepath'] && !game.global.tech['isolation'] && game.global.tech['rival'] && game.global.civic.foreign.gov3.hstl > 0){
+                        options.push('gov3');
+                    }
+                    if (!game.global.race['truepath'] && game.global.tech.piracy > 1){
+                        options.push('piracy');
+                    }
+                    if (game.global.race['truepath'] && game.global.space['syndicate']){
+                        options.push('syndicate');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    if (['gov0','gov1','gov2'].includes(result.spell)){
+                        result.description = 'Annex foreign power #' + result.spell.substring(3)
+                    }
+                    else {
+                        switch(result.spell){
+                            case 'flower':
+                                result.description = 'Hippie festival of flowers (does nothing)';
+                                break;
+                            case 'gov0':
+                                result.description = 'Annex foreign power #1';
+                                break;
+                            case 'gov1':
+                                result.description = 'Annex foreign power #2';
+                                break;
+                            case 'gov2':
+                                result.description = 'Annex foreign power #3';
+                                break;
+                            case 'gov3':
+                                result.description = 'Set hostility with forein power #4 to 0';
+                                break;
+                            case 'piracy':
+                                {
+                                    result.amount = Math.floor(random.seededRandom(1,game.global.tech.piracy));
+                                    result.description = 'Reduce piracy (set to ' + result.amount + ')';
+                                }
+                                break;
+                            case 'syndicate':
+                                /*Object.keys(game.global.space.syndicate).forEach(function(synd){
+                                    if (game.global.space.syndicate[synd] > 10){
+                                        game.global.space.syndicate[synd] = Math.floor(seededRandom(10,game.global.space.syndicate[synd]));
+                                    }
+                                });*/
+                                result.description = 'Reduce syndicate power';
+                                break;
+                        }
+                    }
+                }
+                break;
+            case 'Greatness':
+                {
+                    let options = ['wonder'];
+                    let a_level = game.alevel();
+                    if (!game.global.race['lone_survivor'] && !game.global.stats.feat['wish'] || (game.global.stats.feat['wish'] && game.global.stats.feat['wish'] < a_level)){
+                        options.push('feat');
+                    }
+                    result.spell = options[Math.floor(random.seededRandom(0,options.length))];
+                    switch (result.spell){
+                        case 'wonder':
+                        {
+                            let wonders = [];
+                            if (!game.global.race['lone_survivor']){
+                                let hasCity = game.global.race['cataclysm'] || game.global.race['orbit_decay'] ? false : true;
+                                let hasMars = game.global.tech['mars'] ? true : false;
+                                if (!game.global.city.hasOwnProperty('wonder_lighthouse') && hasCity){
+                                    wonders.push('Lighthouse');
+                                }
+                                if (!game.global.city.hasOwnProperty('wonder_pyramid') && hasCity){
+                                    wonders.push('Pyramid');
+                                }
+                                if (!game.global.space.hasOwnProperty('wonder_statue') && hasMars){
+                                    wonders.push('Statue');
+                                }
+                                if (!game.global.race['truepath'] && !game.global.interstellar.hasOwnProperty('wonder_gardens') && game.global.tech['alpha'] && game.global.tech.alpha >= 2){
+                                    wonders.push('Gardens');
+                                }
+                                if (game.global.race['truepath'] && !game.global.space.hasOwnProperty('wonder_gardens') && game.global.tech['titan'] && game.global.tech.titan >= 2){
+                                    wonders.push('Gardens');
+                                }
+                            }
+                            if (wonders.length > 0){
+                                let monument = wonders[Math.floor(random.seededRandom(0,wonders.length))];
+                                result.description = 'Gain a monument (' + monument + ')'
+                            }
+                            else {
+                                result.description = 'Fail to gain a monument (none available)'
+                            }
+                        }
+                        break;
+                        case 'feat':
+                        {
+                            result.description = 'Unlock \'Participation Trophy\' feat';
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+            return result;
+        },
+        updateTooltips() {
+            if (this.seed !== game.global.seed) {
+                return;
+            }
+            if (settings.enableRngPrediction && settings.rng_displayWishOutcomes) {
+                wishData.minor.map(wish => wish.id).forEach(wish => state.tooltips['wish' + wish] = this.minorWish[wish].description);
+                wishData.major.map(wish => wish.id).forEach(wish => state.tooltips['wish' + wish] = this.majorWish[wish].description);
+            }
+        }
+    }
 
     var WindowManager = {
         openedByScript: false,
@@ -8858,6 +9555,14 @@ declare global {
         applySettings(def, reset);
     }
 
+    function resetRngPredictionSettings(reset) {
+        let def = {
+            enableRngPrediction: false,
+            rng_displayWishOutcomes: true,
+        }
+        applySettings(def, reset);
+    }
+
     function resetHellSettings(reset) {
         let def = {
             autoHell: false,
@@ -9727,6 +10432,7 @@ declare global {
         resetTriggerSettings(false);
         resetMinorTraitSettings(false);
         resetMutableTraitSettings(false);
+        resetRngPredictionSettings(false);
         resetSnippetSettings(false);
 
         // Validate overrides types, and fix if needed
@@ -14788,6 +15494,10 @@ declare global {
         }
     }
 
+    function autoRngPrediction() {
+        RngPredictionManager.updatePrediction()
+    }
+
     function updateScriptData() {
         WarManager.updateGarrison();
         WarManager.updateHell();
@@ -15432,6 +16142,7 @@ declare global {
         prioritizeDemandedResources(); // Set res.requestedQuantity, uses queuedTargets and triggerTargets
 
         state.tooltips = {};
+        RngPredictionManager.updateTooltips();
         state.moneyIncomes.shift();
         for (let i = state.moneyIncomes.length; i < 11; i++) {
             state.moneyIncomes.push(resources.Money.rateOfChange);
@@ -15991,7 +16702,12 @@ declare global {
             }
             return;
         }
-
+        if (settings.enableRngPrediction) {
+            autoRngPrediction();
+        }
+        if (settings.autoMinorTrait) {
+            autoWish(); // Perform this early on, as many actions (sush as gathering resources or researching a technology) could change the outcome of some wishes, thus invalidating the predicted outcomes.
+        }
         if (settings.buildingAlwaysClick || settings.autoBuild){
             autoGatherResources();
         }
@@ -16102,7 +16818,6 @@ declare global {
             autoShapeshift(); // Shifting genus can remove techs, buildings, resources, etc. Leaving broken preloaded buttons behind. This thing need to be at the very end, to prevent clicking anything before redrawing tabs
             autoPsychic();
             autoOcularPowers();
-            autoWish();
         }
         if (settings.autoMutateTraits) {
             autoMutateTrait();
@@ -16792,6 +17507,7 @@ declare global {
         buildProjectSettings();
         buildSnippetSettings();
         buildLoggingSettings(scriptContentNode, "");
+        buildRngPredictionSettings();
 
         let collapsibles = document.querySelectorAll("#script_settings .script-collapsible");
         for (let i = 0; i < collapsibles.length; i++) {
@@ -17099,6 +17815,24 @@ declare global {
           [{val: "", label: "None", hint: "Planet have no trait"},
            ...traitList.slice(1).map(t =>
           ({val: t, label: game.loc(`planet_${t}`)}))]},
+        minorWish: {def: "Money", arg: "select_cb", options: () =>
+        [{val: "Money", label: "Money", hint: 'Possible outcomes: money, robbery, taxes'},
+        {val: "Res", label: "Resources", hint: 'Possible outcomes: useless, common, rare, stolen, 2xcommon, 2xrare'},
+        {val: "Know", label: "Knowledge", hint: 'Possible outcomes: inspire, know, science'},
+        {val: "Fame", label: "Fame", hint: 'Possible outcomes: notorious, reputable'},
+        {val: "Strength", label: "Strength", hint: 'Possible outcomes: troops, trait, military'},
+        {val: "Influence", label: "Influence", hint: 'Possible outcomes: magazine, astro, professor'},
+        {val: "Excite", label: "Excitement", hint: 'Possible outcomes: minorEvent'},
+        {val: "Love", label: "Love", hint: 'Possible outcomes: pet, gov0, gov,1, gov2, gov3'}]},
+        majorWish: {def: "BigMoney", arg: "select_cb", options: () =>
+        [{val: "BigMoney", label: "Money", hint: 'Possible outcomes: money, robbery, casino'},
+        {val: "BigRes", label: "Resources", hint: 'Possible outcomes: useless, common, rare, stolen, 2xcommon, 2xrare'},
+        {val: "Plasmid", label: "Plasmids", hint: 'Possible outcomes: fake, future, mad, blackhole'},
+        {val: "Power", label: "Power", hint: 'Possible outcomes: potato, ship, government'},
+        {val: "Adoration", label: "Adoration", hint: 'Possible outcomes: priest, temple, zigg'},
+        {val: "Thrill", label: "Thrills", hint: 'Possible outcomes: majorEvent'},
+        {val: "Peace", label: "Peace", hint: 'Possible outcomes: flower, gov0, gov,1, gov2, gov3, piracy, syndicate'},
+        {val: "Greatness", label: "Greatness", hint: 'Possible outcomes: wonder, feat'}]},
         industry: {def: "smelters", arg: "select_cb", options: () =>
                 [{ val: "smelters", label: "Total Smelter Slot Count" },
                 { val: "factories", label: "Total Factory Slot Count" }]},
@@ -17121,6 +17855,8 @@ declare global {
         industry: (b) => b === "smelters" ? SmelterManager.maxOperating() :
                     b === "factories" ? FactoryManager.maxOperating() :
                     b,
+        minorWish: (w) => RngPredictionManager.minorWish[w]?.spell ?? "",
+        majorWish: (w) => RngPredictionManager.majorWish[w]?.spell ?? "",
         other: (o) => o === "rname" ? (game.races[game.global.race.species === "protoplasm" && game.global.race.evoFinalMenu ? game.global.race.evoFinalMenu : game.global.race.species].name) :
                       o === "tpfleet" ? (game.global.space.shipyard?.ships?.length ?? 0) :
                       o === "mrelay" ? (game.global.space.m_relay?.charged / 10000.0 ?? 0) :
@@ -17180,6 +17916,8 @@ declare global {
         PlanetBiome: { fn: (b) => game.global.city.biome === b, ...argType.biome, desc: "Returns true when playing in selected biome" },
         PlanetTrait: { fn: (t) => game.global.city.ptrait.includes(t), ...argType.ptrait, desc: "Returns true when planet have selected trait" },
         Industry: { fn: (r) => argMap.industry(r), ...argType.industry, desc: "Returns information about Industry buildings" },
+        MinorWish: { fn: (w) => argMap.minorWish(w), ...argType.minorWish, desc: "Returns the type of wish that will occur"},
+        MajorWish: { fn: (w) => argMap.majorWish(w), ...argType.majorWish, desc: "Returns the type of wish that will occur"},
         Other: { fn: (o) => argMap.other(o), ...argType.other, desc: "Other uncategorized variables" },
     }
 
@@ -21100,6 +21838,26 @@ declare global {
 
         document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
     }
+    function buildRngPredictionSettings(parentNode, secondaryPrefix) {
+        let sectionId = "rngPrediction";
+        let sectionName = "RNG Prediction";
+        let resetFunction = function() {
+            resetRngPredictionSettings(true);
+            updateSettingsFromState();
+            updateRngPredictionSettingsContent(secondaryPrefix);
+        };
+        buildSettingsSection(sectionId, sectionName, resetFunction, updateRngPredictionSettingsContent);
+    }
+    function updateRngPredictionSettingsContent() {
+        let currentScrollPosition = document.documentElement.scrollTop || document.body.scrollTop;
+        let currentNode = $(`#script_rngPredictionContent`);
+        currentNode.empty().off("*");
+        addSettingsToggle(currentNode, "enableRngPrediction", "Enable RNG Prediction", "Master switch to enable RNG prediction");
+        
+        addSettingsHeader1(currentNode, "Wish Outcome Prediction");
+        addSettingsToggle(currentNode, "rng_displayWishOutcomes", "Display Wish Outcomes", "Displays the outcome of each wish as a tooltip");
+        document.documentElement.scrollTop = document.body.scrollTop = currentScrollPosition;
+    }
 
     function createQuickOptions(node, optionsElementId, optionsDisplayName, buildOptionsFunction) {
         let optionsDiv = $(`<div style="cursor: pointer;" id="${optionsElementId}">${optionsDisplayName} Options</div>`);
@@ -22041,7 +22799,45 @@ declare global {
 
         return element.__vue__;
     }
-
+    var affix_list = {
+        si: ['K','M','G','T','P','E','Z','Y'],
+        sln: ['K','M','B','t','q','Q','s','S']
+    };
+    var numFormatShort = new Intl.NumberFormat(undefined, {maximumFractionDigits: 2, maximumSignificantDigits: 3, roundingMode: 'trunc', roundingPriority: 'lessPrecision'});
+    var numFormatLong = new Intl.NumberFormat(undefined, {maximumFractionDigits: 2, maximumSignificantDigits: 4, roundingMode: 'trunc', roundingPriority: 'lessPrecision'});
+    const ADD_16_ULP = 1 + (16 * Number.EPSILON);
+    function sizeApproximation(value, s_affix, precision = 1, precise = false, exact = false){
+        let absValue = Math.abs(value);
+        let oom = Math.floor(Math.log10(absValue));
+        value = value<0 ? -absValue : value>0 ? absValue : value;
+        if (exact){
+            return value.toLocaleString(undefined, {maximumFractionDigits: precision, roundingMode: 'trunc'});
+        }
+        else if (oom < 4 || precise){
+            let maxSigFigs = Math.max(oom + 1, precision + 1, 5);
+            return value.toLocaleString(undefined, {maximumSignificantDigits: maxSigFigs, maximumFractionDigits: precision, roundingMode: 'trunc', roundingPriority: 'lessPrecision'});
+        } else {
+            const oomMod3 = oom % 3;
+            const dispShort = oom === 4;
+            const forceSI = s_affix !== 'eng' && oom >= 27;
+            if (s_affix !== 'sci' && !forceSI){
+                oom -= oomMod3;
+            }
+            let affix;
+            if (s_affix === 'sci' || s_affix === 'eng' || forceSI){
+                affix = 'e' + oom;
+            } else {
+                affix = affix_list[s_affix][(oom / 3) - 1];
+            }
+            value /= (10**oom);
+            if (dispShort){
+                return numFormatShort.format(value) + affix;
+            } else {
+                return numFormatLong.format(value) + affix;
+            }
+        }
+    }
+    
     // Recursively traverse through object, wrapping all functions in getters
     function normalizeProperties(object, proto = []) {
         for (let key in object) {
