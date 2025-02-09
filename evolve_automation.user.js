@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Evolve
 // @namespace    http://tampermonkey.net/
-// @version      3.3.1.151
+// @version      3.3.1.152
 // @description  try to take over the world!
 // @downloadURL  https://github.com/Coefficiently/Evolve-automation/raw/main/evolve_automation.user.js
 // @updateURL    https://github.com/Coefficiently/Evolve-automation/raw/main/evolve_automation.meta.js
@@ -22837,7 +22837,7 @@ declare global {
             }
         }
     }
-    
+
     // Recursively traverse through object, wrapping all functions in getters
     function normalizeProperties(object, proto = []) {
         for (let key in object) {
