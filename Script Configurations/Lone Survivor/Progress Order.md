@@ -1,3 +1,7 @@
+## Progress Order
+
+#### Research and build items may not trigger in the exact order presented here due to them being able to be triggered simultaneously
+
 - Imitate Djinni
 - Mimic None
 - Government Technocracy
@@ -30,11 +34,14 @@
 - Research Womling Entertainment
 - Research Womling Science
 - Government Federation
-- Build 1 Tau Red Womling Lab
+- Build 2 Tau Red Womling Lab
 - Build 9 Tau Orbital Station
 - Build 11 Tau Colony
-- Build 3 Tau Red Womling Mine
 - Build 8 Tau Red Orbital Platform
+- Build 13 Tau Red Womling Village
+- Build 5 Tau Red Womling Farm
+- Build 3 Tau Red Womling Mine
+- Build 3 Tau Red Womling Theater
 - Build 6 Tau Red Overseer
 - Build 14 Tau Casino
 - Research Tau Survey
@@ -55,6 +62,7 @@
 - Build 5 Tau Red Womling Mine
 - Build 3 Tau Gas Ore Refinery
 - Research Advanced Belt Mining
+- Research Womling Dirt Excavation
 - Research Alien Research
 - Build 6 Tau Belt Extractor Ship
 - Build 5 Tau Red Womling Mine
@@ -64,8 +72,8 @@
 - Research Advanced Asteroid Mining
 - Research Advanced Pit Mining
 - Research Womling Gene Therapy
-- Research Womling Dirt Excavation
 - Government Federation
+- Build 8 Tau Belt Extractor Ship
 - Build 1000 Tau Star Ringworld
 - Research Garden of Eden
 - Build Garden of Eden Facility
