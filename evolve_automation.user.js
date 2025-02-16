@@ -2033,7 +2033,7 @@
         }
 
         canMutate(action) {
-            let currentPlasmids = resources[game.global.race.universe === "antimatter" ? "Antiplasmid" : "Plasmid"].currentQuantity;
+            let currentPlasmids = resources[game.global.race.universe === "antimatter" ? "AntiPlasmid" : "Plasmid"].currentQuantity;
             return currentPlasmids - this.mutationCost(action) >= MutableTraitManager.minimumPlasmidsToPreserve
               && !((game.global.race.species === "sludge" || game.global.race.species === "ultra_sludge") && game.global.race["modified"]);
         }
@@ -2344,7 +2344,7 @@
         Blood_Stone: new PrestigeResource("Blood Stone", "Blood_Stone"),
         Artifact: new PrestigeResource("Artifact", "Artifact"),
         Plasmid: new PrestigeResource("Plasmid", "Plasmid"),
-        Antiplasmid: new PrestigeResource("Anti-Plasmid", "AntiPlasmid"),
+        AntiPlasmid: new PrestigeResource("Anti-Plasmid", "AntiPlasmid"),
         Supercoiled: new PrestigeResource("Supercoiled", "Supercoiled"),
         Phage: new PrestigeResource("Phage", "Phage"),
         Dark: new PrestigeResource("Dark", "Dark"),
@@ -14785,7 +14785,7 @@ declare global {
             return;
         }
 
-        let currency = game.global.race.universe === "antimatter" ? resources.Antiplasmid : resources.Plasmid;
+        let currency = game.global.race.universe === "antimatter" ? resources.AntiPlasmid : resources.Plasmid;
 
         for (let trait of m.priorityList) {
             if (trait.canGain()) {
