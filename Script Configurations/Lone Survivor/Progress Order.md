@@ -5,22 +5,24 @@
 - Imitate Djinni
 - Mimic None
 - Government Technocracy
-- Build 3 Tau Fusion Generator
 - Research Limited Wish
-- Research Governor
+- Research Governor (Change order based on wish rng seeding)
 - Governor Bureaucrat
 - Research Fanaticism
 - Research Anthropology
 - Research Greater Wish
 - Research Ancient Theology
-- Research Deify Ancients
+- Research Deify Ancients (Don't build ANYTHING until this is complete)
 - Research Alien Outpost Device
+- Build 3 Tau Fusion Generator
 - Build 6 Tau Orbital Station
 - Build 8 Tau Colony
-- Build 7 Tau Casino
-- Build 20 Stock Exchange
+- Build 8 Tau Casino
 - Mimic Heat
+- Build 5 Stock Exchange (Prestige dependant)
+- Greater Wish for money if == money wish, otherwise research and select governor for seed reroll, if wish !== money then soft reset
 - Research Antimatter Replicator
+- Disease Lab vs Womling Lab first depends on overall run speed and what you're gated on, runs longer than 400 days will most likely follow the order listed here
 - Research Tau Ceti Cultivation
 - Research Tau Ceti Manufacturing
 - Build 1 Tau High-Tech Factory
@@ -30,7 +32,9 @@
 - Research Meet the Neighbors
 - Build 1 Tau Disease Lab
 - Government Technocracy
+- Mimic Small
 - Build Subjugate Womlings
+- Mimic Heat
 - Research Womling Entertainment
 - Research Womling Science
 - Government Federation
@@ -42,8 +46,10 @@
 - Build 5 Tau Red Womling Farm
 - Build 3 Tau Red Womling Mine
 - Build 3 Tau Red Womling Theater
+- Mimic Avian
 - Build 6 Tau Red Overseer
 - Build 14 Tau Casino
+- Mimic Heat
 - Research Tau Survey
 - Build Gas Giant Naming Contest
 - Build Tau Ceti Asteroid Belt Mission
@@ -65,15 +71,17 @@
 - Research Womling Dirt Excavation
 - Research Alien Research
 - Build 6 Tau Belt Extractor Ship
-- Build 5 Tau Red Womling Mine
+- Build 6 Tau Red Womling Mine
 - Build 4 Tau Gas Ore Refinery
 - Build 7 Tau Belt Extractor Ship
 - Research Advanced Ore Refinery
 - Research Advanced Asteroid Mining
-- Research Advanced Pit Mining
 - Research Womling Gene Therapy
+- Research Advanced Pit Mining
 - Government Federation
-- Build 8 Tau Belt Extractor Ship
+- Build N Tau Belt Extractor Ship
+- Build N Tau Gas Ore Refinery
+- N = As many as possible
 - Build 1000 Tau Star Ringworld
 - Research Garden of Eden
 - Build Garden of Eden Facility
