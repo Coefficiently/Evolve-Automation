@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Evolve
 // @namespace    http://tampermonkey.net/
-// @version      3.3.1.153
+// @version      3.3.1.154
 // @description  try to take over the world!
 // @downloadURL  https://github.com/Coefficiently/Evolve-automation/raw/main/evolve_automation.user.js
 // @updateURL    https://github.com/Coefficiently/Evolve-automation/raw/main/evolve_automation.meta.js
@@ -19217,7 +19217,6 @@ declare global {
     }
 
     function addTriggerSetting() {
-        let trigger = TriggerManager.AddTrigger("ResearchUnlocked", "tech-club", 1, "research", "tech-club", 0, true);
         let trigger = TriggerManager.AddTrigger("Boolean", false, 1, "research", "tech-club", 0);
         updateSettingsFromState();
 
