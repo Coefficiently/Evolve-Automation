@@ -2,41 +2,61 @@
 
 #### Research and build items may not trigger in the exact order presented here due to them being able to be triggered simultaneously
 
+#### When it says build (number) it is refering to the TOTAL number and not how many additional to build, such as build 1 factory >> build 2 factory is not 3 factories total but is saying build 1 factory total >> build 2 factory for 2 total
+
+#### Matter replicator management is fairly important for LS and it's hard to give a strict order of how to use it since it varies a lot depending on your prestige, early on it will be used for unobtainium (Womling lab/Disease lab) and elerium (Womling lab). You will also want to keep certain resources above a minimum to maintain building upkeep, I like to keep Oil/Helium above 10k and elerium above 1500. Helium/Oil replication will also be important for the 2.2mil helium needed for research/building and oil for the 800k needed for tau red orbital platforms. Replicator can be used for titanium to help build your first 7 extractor ships as well. Towards the end of runs during ringworld it will mostly be used for orichalcum and towards the very end graphene for Garden of Eden building.
+
 - Imitate Djinni
+    - When switching to sand genus we lose imitate and add wish to custom
 - Mimic None
+    - Want to use starting resources before losing all lumber
+- Job to professor
 - Government Technocracy
 - Research Limited Wish
-- Research Governor (Change order based on wish rng seeding)
+- Research Governor
+    - Depending on your script you may want to change where this in your order since it changes seed when you hire a governor and can change what your greater wish will give you
 - Governor Bureaucrat
+    - Only useful governor
 - Research Fanaticism
-- Research Anthropology
 - Research Greater Wish
 - Research Ancient Theology
-- Research Deify Ancients (Don't build ANYTHING until this is complete)
+- Research Deify Ancients
+    - Don't build **ANYTHING** until this is complete, it gives us R3 empower which is needed to rank all of our traits to max such as bloated which changes resource costs
 - Research Alien Outpost Device
 - Build 3 Tau Fusion Generator
 - Build 6 Tau Orbital Station
 - Build 8 Tau Colony
 - Build 8 Tau Casino
-- Mimic Heat
+    - Can change casino count depending on prestige
 - Build 5 Stock Exchange (Prestige dependant)
-- Greater Wish for money if == money wish, otherwise research and select governor for seed reroll, if wish !== money then soft reset
+- Mimic Heat
+    - No longer need starting lumber/plywood
+- Change job to BANKER and use greater money wish
+- **Greater Wish for money if == money wish, otherwise research and select governor for seed reroll, if wish !== money then soft reset, if using RNG Prediction script addition you can just use an eval to determine what the next N wishes will be, if not using RNG Prediction you can just cast wish and if day(total) > 5 and money < (your money required to finish LS (around 4-5bil) then you soft reset)**
+- Job to professor
 - Research Antimatter Replicator
-- Disease Lab vs Womling Lab first depends on overall run speed and what you're gated on, runs longer than 400 days will most likely follow the order listed here
+- **Disease Lab vs Womling Lab first depends on overall run speed and what you're gated on, runs longer than 400 days will most likely follow the order listed here**
 - Research Tau Ceti Cultivation
 - Research Tau Ceti Manufacturing
+- Job to pit miner for chyrsotile
 - Build 1 Tau High-Tech Factory
 - Government Corpocracy
 - Build 7 Tau Orbital Station
 - Build 3 Tau High-Tech Factory
+- Job to professor
+    - Make sure to stay on pit miner until all 3 factories are built and you have enough chrysotile stored for disease lab
 - Research Meet the Neighbors
 - Build 1 Tau Disease Lab
+- Job to scientist
 - Government Technocracy
 - Mimic Small
+    - Allows subjugate to not cost chrysotile and only money
 - Build Subjugate Womlings
+    - **VERY** important that this entire progress is designed with ONLY subjugtate in mind, subjugate allows you to build overseers that don't cost titanium 
 - Mimic Heat
 - Research Womling Entertainment
 - Research Womling Science
+- Job to pit miner
 - Government Federation
 - Build 2 Tau Red Womling Lab
 - Build 9 Tau Orbital Station
@@ -49,18 +69,24 @@
 - Mimic Avian
 - Build 6 Tau Red Overseer
 - Build 14 Tau Casino
+    - Can change casino count depending on prestige/preference
 - Mimic Heat
+- Job to scientist
+    - As long as research isn't capped while waiting for womling tech level 1 otherwise stay on pit miner
+    - From here on changing jobs from scientist/pit miner will vary a lot depending on when your research is complete and when you require chrysotile, can't go wrong with just putting job as pit miner when knowledge isn't required
 - Research Tau Survey
 - Build Gas Giant Naming Contest
 - Build Tau Ceti Asteroid Belt Mission
 - Research Asteroid Data Analysis
 - Research Shark Repellent
 - Build 7 Patrol Ship
+    - Amount can vary depending on prestige
 - Build New Jupiter
 - Build 1 Refueling Station
 - Research Tau Ceti Belt Mining
 - Build 2 Tau Gas Ore Refinery
 - Build 4 Tau Belt Extractor Ship
+    - You will want FULL Neutronium slider and FULL Orichalcum slider under production settings
 - Research Survey Outer Planet
 - Build Gas Giant 2 Naming Contest
 - Build Grand Jupiter
@@ -80,8 +106,9 @@
 - Research Advanced Pit Mining
 - Government Federation
 - Build N Tau Belt Extractor Ship
+    - N = As many as possible
 - Build N Tau Gas Ore Refinery
-- N = As many as possible
+    - N = As many as possible
 - Build 1000 Tau Star Ringworld
 - Research Garden of Eden
 - Build Garden of Eden Facility
